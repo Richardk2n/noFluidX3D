@@ -1,0 +1,28 @@
+{
+	"info": {},
+	"gpu": 0,
+	"OutputDir": "/tp6-gekle/nas/bt709186/noFluidx3d_results/test2/",
+	"SimulationTimeSI": 4.0,
+	"VTKFramesTotal":  50,
+	"VelocitySI": 0.5e-6,
+	"MoveTimeSI": 4.0,
+	"SphereRadiusSI": 10.0e-6,
+	"COMSpringConst": 1e-2,
+	"PotentialForceConst": 100.0,
+	"InitialDistance": 0.2,
+	"Box": [60, 40, 64],
+	"ReynoldScaling": 1000.0,
+	"TimeStepScaling": 1.0,
+	"RhoSI": 1e3,
+	"MuFluidSI": 1.2e-3,
+	"CELL": {
+	  "InitVTK": "/tp6-gekle/nas/bt709186/fluidx3d_lib/mesh.vtk",
+	  "Offset": [0,0,0],
+	  "RadiusSI": 8.0e-6,
+	  "RadiusSIM": 18.0,
+	  "MuSI": 1.2e-3,
+	  "PoissonRatio": 0.48,
+	  "YoungsModulusSI": 2.3e3,
+	  "YoungsScaling": 100
+	}
+}
