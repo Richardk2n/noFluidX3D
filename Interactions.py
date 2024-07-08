@@ -3,7 +3,7 @@ from pyclParams import ctx, queue, mf
 import ctypes
 import numpy as np
 
-def readKernel(path, numPoints, numTetra, point3fix=True):
+def readKernel(path, numPoints, numTetra, point3fix=True, numTriangle=None):
     with open(path, "r") as f:
         kernelstring = f.read()
     with open("kernels/atomicAdd.cl", "r") as f:
@@ -11,6 +11,8 @@ def readKernel(path, numPoints, numTetra, point3fix=True):
     returnstring = ""
     if point3fix: #special exception for the time evolution kernels. Setting this to true makes point 3 only move in y direction
         returnstring += "#define POINT3FIX\n"
+    if numTriangle:
+        returnstring += f"#define INSERT_NUM_TRIANGLES {numTriangle}\n"
     returnstring += f"#define INSERT_NUM_POINTS {numPoints}\n #define INSERT_NUM_TETRAS {numTetra} \n typedef double ibmPrecisionFloat;\n typedef double3 ibmPrecisionFloat3;\n" + atomicAdd + kernelstring
     return returnstring
 
@@ -137,7 +139,43 @@ class InteractionMooneyRivlin(Interaction):
         self.prg = cl.Program(ctx, readKernel("kernels/InteractionMooneyRivlinStress.cl", numPoints, numTetra)).build()
         self.knl = self.prg.Interaction_MooneyRivlinStress
         self.knl.set_args(forceB, pointsB, tetraB, self.edgeVectorsB, self.volumesB, self.shearMod1B, self.shearMod2B, self.bulkModB, vonMisesB, pressureB)
- 
+
+class InteractionFiniteStrainViscoplastic(Interaction):
+    def __init__(self, numPoints, numTetra, forceB, pointsB, tetraB, referenceEdgeVectors, referenceVolumes, shearModulus1, shearModulus2, bulkModulus, viscoplasticFlowExponent, viscoplasticYieldStress, viscoplasticFlowRate, hardeningThreshhold, hardeningExponent, vonMisesB, pressureB):
+        Interaction.__init__(self, numTetra)
+        shearMod1NP = shearModulus1*np.ones(numTetra).astype(np.float64)
+        shearMod2NP = shearModulus2*np.ones(numTetra).astype(np.float64)
+        bulkModNP = bulkModulus*np.ones(numTetra).astype(np.float64)
+        flowExponentNP = viscoplasticFlowExponent*np.ones(numTetra).astype(np.float64)
+        yieldStressNP = viscoplasticYieldStress*np.ones(numTetra).astype(np.float64)
+        flowRateNP = viscoplasticFlowRate*np.ones(numTetra).astype(np.float64)
+        hardeningThreshholdNP = hardeningThreshhold*np.ones(numTetra).astype(np.float64)
+        hardeningExponentNP = hardeningExponent*np.ones(numTetra).astype(np.float64)
+        accumulatedStrainNP = np.zeros(numTetra).astype(np.float64)
+        plasticDeformationTensorNP = np.repeat(np.identity(3).reshape(9), numTetra).astype(np.float64)
+
+        self.shearMod1B = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=shearMod1NP)
+        self.shearMod2B = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=shearMod2NP)
+        self.bulkModB = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=bulkModNP)
+        self.flowExponentB = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=flowExponentNP)
+        self.yieldStressB = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=yieldStressNP)
+        self.flowRateB = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=flowRateNP)
+        self.hardeningThreshholdB = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=hardeningThreshholdNP)
+        self.hardeningExponentB = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=hardeningExponentNP)
+        edgeVectorsNP = referenceEdgeVectors.reshape(9*numTetra, order='F').astype(np.float64)
+        self.edgeVectorsB = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=edgeVectorsNP)
+        self.volumesB = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=referenceVolumes.astype(np.float64))
+
+        self.accumulatedStrainB = cl.Buffer(ctx, mf.READ_WRITE | mf.COPY_HOST_PTR, hostbuf=accumulatedStrainNP)
+        self.plasticDeformationTensorB = cl.Buffer(ctx, mf.READ_WRITE | mf.COPY_HOST_PTR, hostbuf=plasticDeformationTensorNP)
+        # Compile Kernel and set arguments
+        self.prg = cl.Program(ctx, readKernel("/tp6-gekle/nas/bt709186/fluidx3d_lib/InteractionFiniteStrainViscoplastic.cl", numPoints, numTetra)).build()
+        self.knl = self.prg.Interaction_FiniteStrainViscoplastic
+        self.knl.set_args(forceB, pointsB, tetraB, self.edgeVectorsB, self.volumesB, self.shearMod1B, self.shearMod2B, self.bulkModB, self.flowExponentB, self.yieldStressB, self.flowRateB, self.hardeningThreshholdB, self.hardeningExponentB, self.accumulatedStrainB, self.plasticDeformationTensorB, vonMisesB, pressureB)
+
+
+
+
 class InteractionSecondOrderNeoHookean(Interaction):
     def __init__(self, numPoints, numTetra, forceB, pointsB, tetraB, referenceEdgeVectors, referenceVolumes, shearModulus1, shearModulus2, bulkModulus, vonMisesB, pressureB):
         Interaction.__init__(self, numTetra)
@@ -261,11 +299,59 @@ class InteractionSphereIntegral(Interaction):
     def beforeTimeStep(self, globalTime):
         self.knl.set_args(self.forceB, self.pointsB, self.tetraB, ctypes.c_double(self.radius), ctypes.c_double(self.sphereFunc(globalTime)), ctypes.c_double(self.forceConst))
 
+class InteractionTipIntegral(Interaction):
+    def __init__(self, numPoints, numTetra, forceB, pointsB, tetraB, radius, halfAngle, posFunc, forceConst, tipX, tipZ):
+        Interaction.__init__(self, numTetra)
+        self.forceB = forceB
+        self.pointsB = pointsB
+        self.tetraB = tetraB
+        self.radius = radius
+        self.halfAngle  = halfAngle
+        self.posFunc = posFunc
+        self.forceConst = forceConst
+        self.tipX = tipX
+        self.tipZ = tipZ
+        self.prg = cl.Program(ctx, readKernel("kernels/InteractionTipIntegral.cl", numPoints, numTetra)).build()
+        self.knl = self.prg.Interaction_TipIntegral
+        print(tetraB)
+        self.knl.set_args(self.forceB, self.pointsB, self.tetraB, ctypes.c_double(self.radius), ctypes.c_double(self.halfAngle), ctypes.c_double(self.tipX), ctypes.c_double(self.posFunc(0)), ctypes.c_double(self.tipZ), ctypes.c_double(self.forceConst))
+        
+    def beforeTimeStep(self, globalTime):
+        self.knl.set_args(self.forceB, self.pointsB, self.tetraB, ctypes.c_double(self.radius), ctypes.c_double(self.halfAngle), ctypes.c_double(self.tipX), ctypes.c_double(self.posFunc(globalTime)), ctypes.c_double(self.tipZ), ctypes.c_double(self.forceConst))
 
+class InteractionAdhesivePlane(Interaction):
+    def __init__(self, numPoints, numTetra, forceB, pointsB, wallFunc, adhesionConst, distance, pointOnSurface):
+        Interaction.__init__(self, numPoints)
+        self.forceB = forceB
+        self.pointsB = pointsB
+        self.wallFunc = wallFunc
+        self.adhesionConst = adhesionConst
+        self.distance=distance
+        self.pointOnSurfaceNP = pointOnSurface
+        self.pointOnSurfaceB = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=self.pointOnSurfaceNP)
+        self.prg = cl.Program(ctx, readKernel("kernels/InteractionAdhesivePlane.cl", numPoints, numTetra)).build()
+        self.knl = self.prg.Interaction_AdhesivePlane
+        self.knl.set_args(self.forceB, self.pointsB, ctypes.c_double(self.wallFunc(0)), ctypes.c_double(self.adhesionConst), ctypes.c_double(self.distance), self.pointOnSurfaceB)
 
+    def beforeTimeStep(self, globalTime):
+        self.knl.set_args(self.forceB, self.pointsB, ctypes.c_double(self.wallFunc(globalTime)), ctypes.c_double(self.adhesionConst), ctypes.c_double(self.distance), self.pointOnSurfaceB)
 
+class InteractionAdhesivePlaneSurfaceIntegral(Interaction):
+    def __init__(self, numPoints, numTetra, numTriangle, forceB, pointsB, triangleB, wallFunc, adhesionConst, distance):
+        Interaction.__init__(self, numTriangle)
+        self.forceB = forceB
+        self.pointsB = pointsB
+        self.triangleB = triangleB
+        self.wallFunc = wallFunc
+        self.adhesionConst = adhesionConst
+        self.distance=distance
+        self.prg = cl.Program(ctx, readKernel("kernels/InteractionAdhesivePlaneSurfaceIntegral.cl", numPoints, numTetra, numTriangle=numTriangle)).build()
+        self.knl = self.prg.Interaction_AdhesivePlaneSurfaceIntegral
+        self.knl.set_args(self.forceB, self.pointsB, self.triangleB, ctypes.c_double(self.wallFunc(0)), ctypes.c_double(self.adhesionConst), ctypes.c_double(self.distance))
+
+ 
 class InteractionVelocityVerlet(Interaction):
-    def __init__(self, numPoints, numTetra, forceB, pointsB):
+    def __init__(self, numPoints, numTetra, forceB, pointsB, fixTopBottom):
         Interaction.__init__(self, numPoints)
         # create additional buffers for velocity and old forceB
         velocityNP = np.zeros(3*numPoints).astype(np.float64)
@@ -274,8 +360,26 @@ class InteractionVelocityVerlet(Interaction):
         self.forceOldB = cl.Buffer(ctx, mf.READ_WRITE | mf.COPY_HOST_PTR, hostbuf=forceOldNP)
         # Compile Kernel and set arguments
         self.prg = cl.Program(ctx, readKernel("/tp6-gekle/nas/bt709186/noFluidx3d/kernels/velocityVerlet.cl", numPoints, numTetra)).build()
-        self.knl = self.prg.VelocityVerlet
+        if fixTopBottom:
+            self.knl = self.prg.VelocityVerletFixedTopBottom
+        else:
+            self.knl = self.prg.VelocityVerlet
         self.knl.set_args(pointsB, self.velocityB, forceB, self.forceOldB)
+
+class InteractionVelocityVerlet2(Interaction):
+    def __init__(self, numPoints, numTetra, forceB, pointsB, massesB, damping):
+        Interaction.__init__(self, numPoints)
+        self.damping = damping
+        # create additional buffers for velocity and old forceB
+        velocityNP = np.zeros(3*numPoints).astype(np.float64)
+        forceOldNP = np.zeros(3*numPoints).astype(np.float64)
+        self.velocityB = cl.Buffer(ctx, mf.READ_WRITE | mf.COPY_HOST_PTR, hostbuf=velocityNP)
+        self.forceOldB = cl.Buffer(ctx, mf.READ_WRITE | mf.COPY_HOST_PTR, hostbuf=forceOldNP)
+        # Compile Kernel and set arguments
+        self.prg = cl.Program(ctx, readKernel("kernels/velocityVerlet2.cl", numPoints, numTetra)).build()
+        self.knl = self.prg.VelocityVerlet2
+        self.knl.set_args(pointsB, self.velocityB, forceB, self.forceOldB, massesB, ctypes.c_double(self.damping))
+
 
 class InteractionOverDamped(Interaction):
     def __init__(self, numPoints, numTetra, forceB, pointsB, point3fix=True):

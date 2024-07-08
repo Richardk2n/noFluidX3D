@@ -7,7 +7,9 @@ import json
 
 referenceConfig = sys.argv[1]
 title = sys.argv[2]
-secondOrderFactors= [0.02, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0]
+SETUP = sys.argv[3]
+secondOrderFactors= [0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0]
+#secondOrderFactors= [0.5, 1.0, 2.0, 5.0, 10.0]
 
 # setup one config file for each factor
     
@@ -25,7 +27,18 @@ for secondOrderFactor in secondOrderFactors:
     
 def runSim(paramFile):
     sim = s.Simulation(paramFile)
-    sim.setInteractionSphere()
+    if SETUP == "TL":
+        print("setting setup to TIPLESS")
+        sim.setInteractionTiltedPlane()
+    elif SETUP == "SP":
+        print("setting setup to SPHERICAL")
+        sim.setInteractionSphere()
+    elif SETUP == "ST":
+        print("setting setup to SHARP TIP")
+        sim.setInteractionTipIntegral()
+    else:
+        print("define the setup type: TL/SP/ST")
+        exit()
     sim.setInteractionHalfPlane()
     sim.setInteractionSecondOrderNeoHookean()
     sim.setInteractionPointZeroForce()

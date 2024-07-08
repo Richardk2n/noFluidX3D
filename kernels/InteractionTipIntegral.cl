@@ -1,8 +1,21 @@
-ibmPrecisionFloat3 calcForceSphere(const ibmPrecisionFloat3 pos, const ibmPrecisionFloat radius, const ibmPrecisionFloat spherePos, const ibmPrecisionFloat forceConst){
-	const ibmPrecisionFloat3 r = pos - (ibmPrecisionFloat3)(0, spherePos, 0);
-	const ibmPrecisionFloat3 n = r / length(r);
-	const ibmPrecisionFloat dis = length(r) - radius;
-	const ibmPrecisionFloat3 force = exp(-forceConst * dis) * n; 
+ibmPrecisionFloat3 calcForceTip(const ibmPrecisionFloat3 pos, const ibmPrecisionFloat radius, const ibmPrecisionFloat halfAngle, const ibmPrecisionFloat3 tip, const ibmPrecisionFloat forceConst){
+	ibmPrecisionFloat3 force = (ibmPrecisionFloat3)(0.0, 0.0, 0.0);
+	ibmPrecisionFloat3 rho = (ibmPrecisionFloat3) (pos.x - tip.x, 0, pos.z - tip.z);
+
+	// Spherical tip regime
+	if(pos.y < (tip.y - sin(halfAngle) * length(rho))){
+		const ibmPrecisionFloat3 r = pos - tip;
+		const ibmPrecisionFloat3 n = r / length(r);
+		const ibmPrecisionFloat dis = length(r) - radius;
+		force = exp(-forceConst * dis) * n; 
+	}
+	else{ // angled regime
+		ibmPrecisionFloat3 eRho = rho / length(rho);
+
+		ibmPrecisionFloat3 n = -sin(halfAngle) * (ibmPrecisionFloat3)(0,1,0) + cos(halfAngle) * eRho;
+		ibmPrecisionFloat dis = dot(pos, n) - dot(tip, n) - radius;
+		force = exp(-forceConst * dis) * n;
+	}
 	return force;
 	
 }
@@ -18,20 +31,18 @@ ibmPrecisionFloat N3(const ibmPrecisionFloat3 xi){
 ibmPrecisionFloat N4(const ibmPrecisionFloat3 xi){
 	return 1 - xi.x - xi.y - xi.z;
 }
-
-kernel void Interaction_SphereIntegral(volatile global ibmPrecisionFloat* particleForce, const global ibmPrecisionFloat* points, const global uint* tetras, const ibmPrecisionFloat radius, const ibmPrecisionFloat spherePos, const ibmPrecisionFloat forceConst){
+kernel void Interaction_TipIntegral(volatile global ibmPrecisionFloat* particleForce, const global ibmPrecisionFloat* points, const global uint* tetras, const ibmPrecisionFloat radius, const ibmPrecisionFloat halfAngle, const ibmPrecisionFloat tipPosX, ibmPrecisionFloat tipPosY, ibmPrecisionFloat tipPosZ, const ibmPrecisionFloat forceConst){
 	const uint tetraID = get_global_id(0);
 	if(tetraID>=INSERT_NUM_TETRAS) return;
 	const uint pointID1 = tetras[				  tetraID];
 	const uint pointID2 = tetras[  INSERT_NUM_TETRAS+tetraID];
 	const uint pointID3 = tetras[2*INSERT_NUM_TETRAS+tetraID];
 	const uint pointID4 = tetras[3*INSERT_NUM_TETRAS+tetraID];
-
+	
 	const ibmPrecisionFloat3 p1 = (ibmPrecisionFloat3)(points[pointID1], points[INSERT_NUM_POINTS+pointID1], points[2*INSERT_NUM_POINTS+pointID1]);
 	const ibmPrecisionFloat3 p2 = (ibmPrecisionFloat3)(points[pointID2], points[INSERT_NUM_POINTS+pointID2], points[2*INSERT_NUM_POINTS+pointID2]);
 	const ibmPrecisionFloat3 p3 = (ibmPrecisionFloat3)(points[pointID3], points[INSERT_NUM_POINTS+pointID3], points[2*INSERT_NUM_POINTS+pointID3]);
 	const ibmPrecisionFloat3 p4 = (ibmPrecisionFloat3)(points[pointID4], points[INSERT_NUM_POINTS+pointID4], points[2*INSERT_NUM_POINTS+pointID4]);
-
 	//Calculate the current distances between the particles of one tetrahedron
 	// r1 = vector between 1 and 4
 	const ibmPrecisionFloat3 r1 = p1-p4;
@@ -39,6 +50,8 @@ kernel void Interaction_SphereIntegral(volatile global ibmPrecisionFloat* partic
 	const ibmPrecisionFloat3 r2 = p2-p4;
 	// r3 = vector between 3 and 4
 	const ibmPrecisionFloat3 r3 = p3-p4;
+
+	const ibmPrecisionFloat3 tipPos = (ibmPrecisionFloat3)(tipPosX, tipPosY, tipPosZ);
 
 	// Calculate current Volume
 
@@ -58,17 +71,33 @@ kernel void Interaction_SphereIntegral(volatile global ibmPrecisionFloat* partic
 	const ibmPrecisionFloat3 x4 = xi4.x * p1 + xi4.y * p2 + xi4.z * p3 + (1.0 - xi4.x - xi4.y -xi4.z) * p4;
 	
 	// force density at integration points
-	const ibmPrecisionFloat3 f1 = calcForceSphere(x1, radius, spherePos, forceConst);
-	const ibmPrecisionFloat3 f2 = calcForceSphere(x2, radius, spherePos, forceConst);
-	const ibmPrecisionFloat3 f3 = calcForceSphere(x3, radius, spherePos, forceConst);
-	const ibmPrecisionFloat3 f4 = calcForceSphere(x4, radius, spherePos, forceConst);
+	const ibmPrecisionFloat3 f1 = calcForceTip(x1, radius, halfAngle, tipPos, forceConst);
+	const ibmPrecisionFloat3 f2 = calcForceTip(x2, radius, halfAngle, tipPos, forceConst);
+	const ibmPrecisionFloat3 f3 = calcForceTip(x3, radius, halfAngle, tipPos, forceConst);
+	const ibmPrecisionFloat3 f4 = calcForceTip(x4, radius, halfAngle, tipPos, forceConst);
 
 	// Total forces acting on each point
 
-	const ibmPrecisionFloat3 F1 = 0.25 * volume * (f1 * N1(xi1) + f2 * N1(xi2) + f3 * N1(xi3) + f4 * N1(xi4));
+	const ibmPrecisionFloat3 F1 = (ibmPrecisionFloat3)(0.25 * volume * (f1 * N1(xi1) + f2 * N1(xi2) + f3 * N1(xi3) + f4 * N1(xi4)));
 	const ibmPrecisionFloat3 F2 = 0.25 * volume * (f1 * N2(xi1) + f2 * N2(xi2) + f3 * N2(xi3) + f4 * N2(xi4));
 	const ibmPrecisionFloat3 F3 = 0.25 * volume * (f1 * N3(xi1) + f2 * N3(xi2) + f3 * N3(xi3) + f4 * N3(xi4));
 	const ibmPrecisionFloat3 F4 = 0.25 * volume * (f1 * N4(xi1) + f2 * N4(xi2) + f3 * N4(xi3) + f4 * N4(xi4));
+	
+	/* DEBUG
+	//if(tetraID==177745){
+	if(tetraID==80790){
+		printf("new timestep:\n");
+		printf("positions");
+		printf("p1 = [%.16f, %.16f, %.16f]\n", p1.x, p1.y, p1.z);
+		printf("p2 = [%.16f, %.16f, %.16f]\n", p2.x, p2.y, p2.z);
+		printf("p3 = [%.16f, %.16f, %.16f]\n", p3.x, p3.y, p3.z);
+		printf("p4 = [%.16f, %.16f, %.16f]\n", p4.x, p4.y, p4.z);
+		printf("forces");
+		printf("F1 = [%.16f, %.16f, %.16f]\n", F1.x, F1.y, F1.z);
+		printf("F2 = [%.16f, %.16f, %.16f]\n", F2.x, F2.y, F2.z);
+		printf("F3 = [%.16f, %.16f, %.16f]\n", F3.x, F3.y, F3.z);
+		printf("F4 = [%.16f, %.16f, %.16f]\n", F4.x, F4.y, F4.z);
+	}*/
 
 	atomicAdd(&particleForce[            	  pointID1], F1.x); // forces on point 1
 	atomicAdd(&particleForce[  INSERT_NUM_POINTS+pointID1], F1.y);

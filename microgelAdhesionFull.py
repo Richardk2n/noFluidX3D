@@ -11,27 +11,31 @@ referenceConfig = sys.argv[1]
 title = sys.argv[2]
 SETUP = sys.argv[3]
 
-
-eccentricities = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.85, 0.9]
-#eccentricities = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
-#eccentricities = [0.9, 0.95]
-#eccentricities = [0.85, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1]
-
-
+#adhesionConstants = [0.001, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08]
+#adhesionConstants = [0.001, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06]
+adhesionConstants = [0.05, 0.06]
+#indices = [0,1,2,3,4,5,6,7,8]
+indices = [5,6]
 configfile = open(referenceConfig)
 parameters = json.load(configfile)
 
 paramFiles = []
-for eccentricity in eccentricities:
-    parameters["OutputDir"] = "/tp6-gekle/nas/bt709186/noFluidx3d_results/ellipsoid/"+title+"_eccentricity_%.2f/" % eccentricity
-    paramFile = "EllipsoidConfigs/config_" + title + "_eccentricity_%.2f.json" % eccentricity
+for i in range(len(adhesionConstants)):
+    parameters["OutputDir"] = "/tp6-gekle/nas/bt709186/noFluidx3d_results/Adhesion/"+title+"_adhesionConstant_%.3f/" % adhesionConstants[i]
+    if SETUP == "ST":
+        parameters["CELL"]["CheckPointVTK"] = "AdhesionVTKs/mesh_relaxedSofter_ST_%d.vtk" % indices[i]
+    else:
+        parameters["CELL"]["CheckPointVTK"] = "AdhesionVTKs/mesh_relaxedSofter_SP_%d.vtk" % indices[i]
+    parameters["AdhesionConstant"] = adhesionConstants[i]
+    paramFile = "AdhesionConfigs/config_" + title + "_adhesionConstant_%.3f.json" % adhesionConstants[i]
     with open(paramFile, "w") as f:
         f.write(json.dumps(parameters))
     paramFiles.append(paramFile)
     
-def runSim(paramFile, eccentricity):
+def runSim(paramFile):
     sim = s.Simulation(paramFile)
-    sim.makeEllipsoid(eccentricity)
+    sim.setInteractionAdhesivePlaneNonDimensional(isSpherical=False)
+    sim.initCheckPointVTK()
     if SETUP == "TL":
         print("setting setup to TIPLESS")
         sim.setInteractionTiltedPlane(isSpherical=False)
@@ -44,13 +48,12 @@ def runSim(paramFile, eccentricity):
     else:
         print("define the setup type: TL/SP/ST")
         exit()
-    sim.setInteractionHalfPlane(isSpherical=False)
     sim.setInteractionNeoHookean()
     sim.setInteractionPointZeroForce()
-    sim.setInteractionVelocityVerlet()
+    sim.setInteractionVelocityVerlet(fixTopBottom=True)
     sim.run()
 
 # Run all the simulations, one after the other
 for i in range(len(paramFiles)):
     print(f"starting simulation of configfile {paramFiles[i]}")
-    runSim(paramFiles[i], eccentricities[i])
+    runSim(paramFiles[i])

@@ -3,13 +3,14 @@ import sys
 import json
 
 # usage:
-# $ PYOPENCL _CTX='0:[gpu]' python microgelPoroElastic.py [path/to/referenceConfig] [title]
+# $ PYOPENCL _CTX='0:[gpu]' python microgelPoroNeoHookean.py [path/to/referenceConfig] [title] [setup type SP/TL/ST]
 
 referenceConfig = sys.argv[1]
 title = sys.argv[2]
-TL = sys.argv[3]
-#volumeFractions = [0.05, 0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.7, 0.9]
-volumeFractions = [0.5, 0.7, 0.9]
+SETUP = sys.argv[3]
+
+volumeFractions = [0.1, 0.2, 0.3, 0.4, 0.5, 0.7]
+#volumeFractions = [0.5, 0.7, 0.9]
 
 # setup one config file for each poisson ratio
     
@@ -27,12 +28,18 @@ for volumeFraction in volumeFractions:
     
 def runSim(paramFile):
     sim = s.Simulation(paramFile)
-    if TL == "TL":
+    if SETUP == "TL":
         print("setting setup to TIPLESS")
         sim.setInteractionTiltedPlane()
-    else:
+    elif SETUP == "SP":
         print("setting setup to SPHERICAL")
         sim.setInteractionSphere()
+    elif SETUP == "ST":
+        print("setting setup to SHARP TIP")
+        sim.setInteractionTipIntegral()
+    else:
+        print("define the setup type: TL/SP/ST")
+        exit()
     sim.setInteractionHalfPlane()
     sim.setInteractionPoroNeoHookean()
     sim.setInteractionPointZeroForce()

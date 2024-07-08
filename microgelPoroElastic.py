@@ -7,10 +7,10 @@ import json
 
 referenceConfig = sys.argv[1]
 title = sys.argv[2]
-TL = sys.argv[3]
+SETUP = sys.argv[3]
 
-#poroFactors = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
-poroFactors = [0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+poroFactors = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
+#poroFactors = [0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
 
 # setup one config file for each poisson ratio
     
@@ -28,12 +28,18 @@ for poroFactor in poroFactors:
     
 def runSim(paramFile):
     sim = s.Simulation(paramFile)
-    if TL == "TL":
-        print("setting setup to Tipless")
+    if SETUP == "TL":
+        print("setting setup to TIPLESS")
         sim.setInteractionTiltedPlane()
-    else:
-        print("setting setup to Spherical")
+    elif SETUP == "SP":
+        print("setting setup to SPHERICAL")
         sim.setInteractionSphere()
+    elif SETUP == "ST":
+        print("setting setup to SHARP TIP")
+        sim.setInteractionTipIntegral()
+    else:
+        print("define the setup type: TL/SP/ST")
+        exit()
     sim.setInteractionHalfPlane()
     sim.setInteractionLinearPoroElastic()
     sim.setInteractionPointZeroForce()

@@ -12,10 +12,9 @@ title = sys.argv[2]
 SETUP = sys.argv[3]
 
 
-eccentricities = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.85, 0.9]
+#eccentricities = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]
 #eccentricities = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
-#eccentricities = [0.9, 0.95]
-#eccentricities = [0.85, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1]
+eccentricities = [0.9]
 
 
 configfile = open(referenceConfig)
