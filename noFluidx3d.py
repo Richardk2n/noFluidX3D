@@ -1,4 +1,3 @@
-ls
 import Simulation as s
 
 testSim = s.Simulation("config_tip.json")

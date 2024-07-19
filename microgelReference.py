@@ -1,5 +1,6 @@
-import Simulation as s
 import sys
+
+import Simulation as s
 
 SETUP = sys.argv[2]
 testSim = s.Simulation(sys.argv[1])
