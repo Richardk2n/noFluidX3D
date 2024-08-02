@@ -3,7 +3,7 @@ import ctypes
 import numpy as np
 import pyopencl as cl
 
-from pyclParams import ctx, mf, queue
+from nofluidx3d.pyclParams import ctx, mf, queue
 
 fluidx3d_lib = "../../fluidx3d_lib"
 

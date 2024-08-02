@@ -1,9 +1,9 @@
 import json
-import TetraCell as tc
+from nofluidx3d import TetraCell as tc
 import numpy as np
 import pyopencl as cl
-import Interactions as inter
-from pyclParams import ctx, queue, mf
+from nofluidx3d import Interactions as inter
+from nofluidx3d.pyclParams import ctx, queue, mf
 import time
 import os
 
