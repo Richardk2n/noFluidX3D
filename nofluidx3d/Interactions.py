@@ -1,17 +1,19 @@
 import ctypes
+from pathlib import Path
 
 import numpy as np
 import pyopencl as cl
 
 from nofluidx3d.pyclParams import ctx, mf, queue
 
-fluidx3d_lib = "../../fluidx3d_lib"
+fluidx3d_lib = Path(__file__).parents[2] / "fluidx3d_lib"
+kernels = Path(__file__).parent / "kernels"
 
 
 def readKernel(path, numPoints, numTetra, point3fix=True, numTriangle=None):
     with open(path, "r") as f:
         kernelstring = f.read()
-    with open("kernels/atomicAdd.cl", "r") as f:
+    with open(kernels / "atomicAdd.cl", "r") as f:
         atomicAdd = f.read()
     returnstring = ""
     if (
@@ -48,7 +50,7 @@ class InteractionSphere(Interaction):
         self.forceConst = forceConst
         self.prg = cl.Program(
             ctx,
-            readKernel(f"{fluidx3d_lib}/InteractionSphere.cl", numPoints, numTetra),
+            readKernel(fluidx3d_lib / "InteractionSphere.cl", numPoints, numTetra),
         ).build()
         self.knl = self.prg.Interaction_Sphere
         self.forceB = forceB
@@ -80,7 +82,7 @@ class InteractionTiltedPlane(Interaction):
         self.prg = cl.Program(
             ctx,
             readKernel(
-                f"{fluidx3d_lib}/InteractionTiltedPlane.cl",
+                fluidx3d_lib / "InteractionTiltedPlane.cl",
                 numPoints,
                 numTetra,
             ),
@@ -116,7 +118,7 @@ class InteractionPlaneAFM(Interaction):
         self.forceConst = forceConst
         self.prg = cl.Program(
             ctx,
-            readKernel(f"{fluidx3d_lib}/InteractionPlaneAFM.cl", numPoints, numTetra),
+            readKernel(fluidx3d_lib / "InteractionPlaneAFM.cl", numPoints, numTetra),
         ).build()
         self.knl = self.prg.Interaction_PlaneAFM
         self.forceB = forceB
@@ -167,7 +169,7 @@ class InteractionLinearElastic(Interaction):
         )
         # Compile Kernel and set arguments
         self.prg = cl.Program(
-            ctx, readKernel("kernels/InteractionLinearElastic.cl", numPoints, numTetra)
+            ctx, readKernel(kernels / "InteractionLinearElastic.cl", numPoints, numTetra)
         ).build()
         self.knl = self.prg.Interaction_LinearElastic
         self.knl.set_args(
@@ -211,7 +213,7 @@ class InteractionLinearElasticDeviatoric(Interaction):
         )
         # Compile Kernel and set arguments
         self.prg = cl.Program(
-            ctx, readKernel("kernels/InteractionLinearElasticDeviatoric.cl", numPoints, numTetra)
+            ctx, readKernel(kernels / "InteractionLinearElasticDeviatoric.cl", numPoints, numTetra)
         ).build()
         self.knl = self.prg.Interaction_LinearElasticDeviatoric
         self.knl.set_args(
@@ -257,7 +259,7 @@ class InteractionPoroNeoHookean(Interaction):
         )
         # Compile Kernel and set arguments
         self.prg = cl.Program(
-            ctx, readKernel("kernels/InteractionPoroNeoHookean.cl", numPoints, numTetra)
+            ctx, readKernel(kernels / "InteractionPoroNeoHookean.cl", numPoints, numTetra)
         ).build()
         self.knl = self.prg.Interaction_PoroNeoHookean
         self.knl.set_args(
@@ -304,7 +306,7 @@ class InteractionMooneyRivlin(Interaction):
         )
         # Compile Kernel and set arguments
         self.prg = cl.Program(
-            ctx, readKernel("kernels/InteractionMooneyRivlinStress.cl", numPoints, numTetra)
+            ctx, readKernel(kernels / "InteractionMooneyRivlinStress.cl", numPoints, numTetra)
         ).build()
         self.knl = self.prg.Interaction_MooneyRivlinStress
         self.knl.set_args(
@@ -384,7 +386,7 @@ class InteractionFiniteStrainViscoplastic(Interaction):
         self.prg = cl.Program(
             ctx,
             readKernel(
-                f"{fluidx3d_lib}/InteractionFiniteStrainViscoplastic.cl",
+                fluidx3d_lib / "InteractionFiniteStrainViscoplastic.cl",
                 numPoints,
                 numTetra,
             ),
@@ -442,7 +444,7 @@ class InteractionSecondOrderNeoHookean(Interaction):
         )
         # Compile Kernel and set arguments
         self.prg = cl.Program(
-            ctx, readKernel("kernels/InteractionSecondOrderNeoHookean.cl", numPoints, numTetra)
+            ctx, readKernel(kernels / "InteractionSecondOrderNeoHookean.cl", numPoints, numTetra)
         ).build()
         self.knl = self.prg.Interaction_SecondOrderNeoHookean
         self.knl.set_args(
@@ -469,7 +471,7 @@ class InteractionHalfPlane(Interaction):
         self.isBelow = isBelow
         self.prg = cl.Program(
             ctx,
-            readKernel(f"{fluidx3d_lib}/InteractionHalfPlane.cl", numPoints, numTetra),
+            readKernel(fluidx3d_lib / "InteractionHalfPlane.cl", numPoints, numTetra),
         ).build()
         self.knl = self.prg.Interaction_HalfPlane
         self.knl.set_args(
@@ -497,7 +499,7 @@ class InteractionCalcCOM(Interaction):
         self.comB = comB
         self.prg = cl.Program(
             ctx,
-            readKernel("kernels/CalcCOM.cl", numPoints, numTetra),
+            readKernel(kernels / "CalcCOM.cl", numPoints, numTetra),
         ).build()
         self.knl = self.prg.CalcCOM
         self.knl.set_args(self.pointsB, self.comB)
@@ -512,7 +514,7 @@ class InteractionCOMForce(Interaction):
         self.comB = comB
         self.prg = cl.Program(
             ctx,
-            readKernel("kernels/COMForce.cl", numPoints, numTetra),
+            readKernel(kernels / "COMForce.cl", numPoints, numTetra),
         ).build()
         self.knl = self.prg.COMForce
         self.knl.set_args(self.forceB, self.pointsB, ctypes.c_double(self.springConst), self.comB)
@@ -526,7 +528,7 @@ class InteractionPointZeroForce(Interaction):
         self.springConst = springConst
         self.prg = cl.Program(
             ctx,
-            readKernel("kernels/PointZeroForce.cl", numPoints, numTetra),
+            readKernel(kernels / "PointZeroForce.cl", numPoints, numTetra),
         ).build()
         self.knl = self.prg.PointZeroForce
         self.knl.set_args(self.forceB, self.pointsB, ctypes.c_double(self.springConst))
@@ -545,7 +547,7 @@ class InteractionTip(Interaction):
         self.forceConst = forceConst
         self.prg = cl.Program(
             ctx,
-            readKernel(f"{fluidx3d_lib}/InteractionTip.cl", numPoints, numTetra),
+            readKernel(fluidx3d_lib / "InteractionTip.cl", numPoints, numTetra),
         ).build()
         self.knl = self.prg.Interaction_Tip
         self.knl.set_args(
@@ -619,7 +621,7 @@ class InteractionLinearViscoelastic(Interaction):
 
         # Compile Kernel and set arguments
         self.prg = cl.Program(
-            ctx, readKernel("kernels/InteractionLinearViscoelastic.cl", numPoints, numTetra)
+            ctx, readKernel(kernels / "InteractionLinearViscoelastic.cl", numPoints, numTetra)
         ).build()
         self.knl = self.prg.Interaction_LinearViscoelastic
         self.knl.set_args(
@@ -649,7 +651,7 @@ class InteractionSphereIntegral(Interaction):
         self.sphereFunc = sphereFunc
         self.forceConst = forceConst
         self.prg = cl.Program(
-            ctx, readKernel("kernels/InteractionSphereIntegral.cl", numPoints, numTetra)
+            ctx, readKernel(kernels / "InteractionSphereIntegral.cl", numPoints, numTetra)
         ).build()
         self.knl = self.prg.Interaction_SphereIntegral
         self.forceB = forceB
@@ -701,7 +703,7 @@ class InteractionTipIntegral(Interaction):
         self.tipX = tipX
         self.tipZ = tipZ
         self.prg = cl.Program(
-            ctx, readKernel("kernels/InteractionTipIntegral.cl", numPoints, numTetra)
+            ctx, readKernel(kernels / "InteractionTipIntegral.cl", numPoints, numTetra)
         ).build()
         self.knl = self.prg.Interaction_TipIntegral
         print(tetraB)
@@ -754,7 +756,7 @@ class InteractionAdhesivePlane(Interaction):
             ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=self.pointOnSurfaceNP
         )
         self.prg = cl.Program(
-            ctx, readKernel("kernels/InteractionAdhesivePlane.cl", numPoints, numTetra)
+            ctx, readKernel(kernels / "InteractionAdhesivePlane.cl", numPoints, numTetra)
         ).build()
         self.knl = self.prg.Interaction_AdhesivePlane
         self.knl.set_args(
@@ -800,7 +802,7 @@ class InteractionAdhesivePlaneSurfaceIntegral(Interaction):
         self.prg = cl.Program(
             ctx,
             readKernel(
-                "kernels/InteractionAdhesivePlaneSurfaceIntegral.cl",
+                kernels / "InteractionAdhesivePlaneSurfaceIntegral.cl",
                 numPoints,
                 numTetra,
                 numTriangle=numTriangle,
@@ -828,7 +830,7 @@ class InteractionVelocityVerlet(Interaction):
         # Compile Kernel and set arguments
         self.prg = cl.Program(
             ctx,
-            readKernel("kernels/velocityVerlet.cl", numPoints, numTetra),
+            readKernel(kernels / "velocityVerlet.cl", numPoints, numTetra),
         ).build()
         if fixTopBottom:
             self.knl = self.prg.VelocityVerletFixedTopBottom
@@ -848,7 +850,7 @@ class InteractionVelocityVerlet2(Interaction):
         self.forceOldB = cl.Buffer(ctx, mf.READ_WRITE | mf.COPY_HOST_PTR, hostbuf=forceOldNP)
         # Compile Kernel and set arguments
         self.prg = cl.Program(
-            ctx, readKernel("kernels/velocityVerlet2.cl", numPoints, numTetra)
+            ctx, readKernel(kernels / "velocityVerlet2.cl", numPoints, numTetra)
         ).build()
         self.knl = self.prg.VelocityVerlet2
         self.knl.set_args(
@@ -863,7 +865,7 @@ class InteractionOverDamped(Interaction):
         self.prg = cl.Program(
             ctx,
             readKernel(
-                "kernels/OverDamped.cl",
+                kernels / "OverDamped.cl",
                 numPoints,
                 numTetra,
                 point3fix=point3fix,
