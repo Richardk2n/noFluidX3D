@@ -73,6 +73,37 @@ class InteractionSphere(Interaction):
         )
 
 
+class InteractionRoundTip(Interaction):
+    def __init__(self, numPoints, numTetra, forceB, pointsB, radius, sphereFunc, forceConst):
+        Interaction.__init__(self, numPoints)
+        self.radius = radius
+        self.sphereFunc = sphereFunc
+        self.forceConst = forceConst
+        self.prg = cl.Program(
+            ctx,
+            readKernel(kernels / "InteractionRoundTip.cl", numPoints, numTetra),
+        ).build()
+        self.knl = self.prg.Interaction_RoundTip
+        self.forceB = forceB
+        self.pointsB = pointsB
+        self.knl.set_args(
+            self.forceB,
+            self.pointsB,
+            ctypes.c_double(self.radius),
+            ctypes.c_double(self.sphereFunc(0)),
+            ctypes.c_double(self.forceConst),
+        )
+
+    def beforeTimeStep(self, globalTime):
+        self.knl.set_args(
+            self.forceB,
+            self.pointsB,
+            ctypes.c_double(self.radius),
+            ctypes.c_double(self.sphereFunc(globalTime)),
+            ctypes.c_double(self.forceConst),
+        )
+
+
 class InteractionTiltedPlane(Interaction):
     def __init__(self, numPoints, numTetra, forceB, pointsB, angle, positionFunc, forceConst):
         Interaction.__init__(self, numPoints)
