@@ -19,6 +19,11 @@ Any additional .cl files given are written specifically for noFluidx3d in order 
 
 It requires Python 3.8 or newer.
 
+Running on 50-1
+---------------
+- Replace the `libOpenCL-b54a1ea0.so.1.0.0` in `~/.myVenv/lib/python3.10/site-packages/pyopencl/.libs/` with `/opt/amdgpu-pro/lib64/libOpenCL.so.1`.
+- Start `python` using `LD_PRELOAD=~/gcc14/lib64/libstdc++.so.6` to load a standardlib compatible with `rocm`.
+
 
 Developing
 -------------
