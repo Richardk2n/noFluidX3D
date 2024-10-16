@@ -3,8 +3,9 @@ from pathlib import Path
 
 import numpy as np
 import pyopencl as cl
+from pyopencl import mem_flags as mf
 
-from nofluidx3d.pyclParams import ctx, mf, queue
+from nofluidx3d.openCL import getCommandQueue, getContext
 
 fluidx3d_lib = Path(__file__).parents[2] / "fluidx3d_lib"
 kernels = Path(__file__).parent / "kernels"
@@ -39,7 +40,7 @@ class Interaction:
         pass
 
     def queueKernel(self):
-        ev = cl.enqueue_nd_range_kernel(queue, self.knl, (self.scope,), None)
+        ev = cl.enqueue_nd_range_kernel(getCommandQueue(), self.knl, (self.scope,), None)
 
 
 class InteractionSphere(Interaction):
@@ -49,7 +50,7 @@ class InteractionSphere(Interaction):
         self.sphereFunc = sphereFunc
         self.forceConst = forceConst
         self.prg = cl.Program(
-            ctx,
+            getContext(),
             readKernel(fluidx3d_lib / "InteractionSphere.cl", numPoints, numTetra),
         ).build()
         self.knl = self.prg.Interaction_Sphere
@@ -80,7 +81,7 @@ class InteractionRoundTip(Interaction):
         self.sphereFunc = sphereFunc
         self.forceConst = forceConst
         self.prg = cl.Program(
-            ctx,
+            getContext(),
             readKernel(kernels / "InteractionRoundTip.cl", numPoints, numTetra),
         ).build()
         self.knl = self.prg.Interaction_RoundTip
@@ -111,7 +112,7 @@ class InteractionTiltedPlane(Interaction):
         self.positionFunc = positionFunc
         self.forceConst = forceConst
         self.prg = cl.Program(
-            ctx,
+            getContext(),
             readKernel(
                 fluidx3d_lib / "InteractionTiltedPlane.cl",
                 numPoints,
@@ -148,7 +149,7 @@ class InteractionPlaneAFM(Interaction):
         self.bottomWallFunc = bottomWallFunc
         self.forceConst = forceConst
         self.prg = cl.Program(
-            ctx,
+            getContext(),
             readKernel(fluidx3d_lib / "InteractionPlaneAFM.cl", numPoints, numTetra),
         ).build()
         self.knl = self.prg.Interaction_PlaneAFM
@@ -191,16 +192,20 @@ class InteractionLinearElastic(Interaction):
         # create additional buffers for referenceEdgeVectors, referenceVolumes, youngsModulus and poissonratio
         youngsNP = youngsModulus * np.ones(numTetra).astype(np.float64)
         poissonNP = poissonRatio * np.ones(numTetra).astype(np.float64)
-        self.youngsB = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=youngsNP)
-        self.poissonB = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=poissonNP)
+        self.youngsB = cl.Buffer(getContext(), mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=youngsNP)
+        self.poissonB = cl.Buffer(getContext(), mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=poissonNP)
         edgeVectorsNP = referenceEdgeVectors.reshape(9 * numTetra, order="F").astype(np.float64)
-        self.edgeVectorsB = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=edgeVectorsNP)
+        self.edgeVectorsB = cl.Buffer(
+            getContext(), mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=edgeVectorsNP
+        )
         self.volumesB = cl.Buffer(
-            ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=referenceVolumes.astype(np.float64)
+            getContext(),
+            mf.READ_ONLY | mf.COPY_HOST_PTR,
+            hostbuf=referenceVolumes.astype(np.float64),
         )
         # Compile Kernel and set arguments
         self.prg = cl.Program(
-            ctx, readKernel(kernels / "InteractionLinearElastic.cl", numPoints, numTetra)
+            getContext(), readKernel(kernels / "InteractionLinearElastic.cl", numPoints, numTetra)
         ).build()
         self.knl = self.prg.Interaction_LinearElastic
         self.knl.set_args(
@@ -235,16 +240,21 @@ class InteractionLinearElasticDeviatoric(Interaction):
         # create additional buffers for referenceEdgeVectors, referenceVolumes, youngsModulus and poissonratio
         shearNP = shearModulus * np.ones(numTetra).astype(np.float64)
         bulkNP = bulkModulus * np.ones(numTetra).astype(np.float64)
-        self.shearB = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=shearNP)
-        self.bulkB = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=bulkNP)
+        self.shearB = cl.Buffer(getContext(), mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=shearNP)
+        self.bulkB = cl.Buffer(getContext(), mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=bulkNP)
         edgeVectorsNP = referenceEdgeVectors.reshape(9 * numTetra, order="F").astype(np.float64)
-        self.edgeVectorsB = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=edgeVectorsNP)
+        self.edgeVectorsB = cl.Buffer(
+            getContext(), mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=edgeVectorsNP
+        )
         self.volumesB = cl.Buffer(
-            ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=referenceVolumes.astype(np.float64)
+            getContext(),
+            mf.READ_ONLY | mf.COPY_HOST_PTR,
+            hostbuf=referenceVolumes.astype(np.float64),
         )
         # Compile Kernel and set arguments
         self.prg = cl.Program(
-            ctx, readKernel(kernels / "InteractionLinearElasticDeviatoric.cl", numPoints, numTetra)
+            getContext(),
+            readKernel(kernels / "InteractionLinearElasticDeviatoric.cl", numPoints, numTetra),
         ).build()
         self.knl = self.prg.Interaction_LinearElasticDeviatoric
         self.knl.set_args(
@@ -279,18 +289,22 @@ class InteractionPoroNeoHookean(Interaction):
         # create additional buffers
         shearNP = shearModulus * np.ones(numTetra).astype(np.float64)
         volumeFractionNP = volumeFraction * np.ones(numTetra).astype(np.float64)
-        self.shearB = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=shearNP)
+        self.shearB = cl.Buffer(getContext(), mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=shearNP)
         self.volumeFractionB = cl.Buffer(
-            ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=volumeFractionNP
+            getContext(), mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=volumeFractionNP
         )
         edgeVectorsNP = referenceEdgeVectors.reshape(9 * numTetra, order="F").astype(np.float64)
-        self.edgeVectorsB = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=edgeVectorsNP)
+        self.edgeVectorsB = cl.Buffer(
+            getContext(), mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=edgeVectorsNP
+        )
         self.volumesB = cl.Buffer(
-            ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=referenceVolumes.astype(np.float64)
+            getContext(),
+            mf.READ_ONLY | mf.COPY_HOST_PTR,
+            hostbuf=referenceVolumes.astype(np.float64),
         )
         # Compile Kernel and set arguments
         self.prg = cl.Program(
-            ctx, readKernel(kernels / "InteractionPoroNeoHookean.cl", numPoints, numTetra)
+            getContext(), readKernel(kernels / "InteractionPoroNeoHookean.cl", numPoints, numTetra)
         ).build()
         self.knl = self.prg.Interaction_PoroNeoHookean
         self.knl.set_args(
@@ -327,17 +341,26 @@ class InteractionMooneyRivlin(Interaction):
         shearMod1NP = shearModulus1 * np.ones(numTetra).astype(np.float64)
         shearMod2NP = shearModulus2 * np.ones(numTetra).astype(np.float64)
         bulkModNP = bulkModulus * np.ones(numTetra).astype(np.float64)
-        self.shearMod1B = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=shearMod1NP)
-        self.shearMod2B = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=shearMod2NP)
-        self.bulkModB = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=bulkModNP)
+        self.shearMod1B = cl.Buffer(
+            getContext(), mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=shearMod1NP
+        )
+        self.shearMod2B = cl.Buffer(
+            getContext(), mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=shearMod2NP
+        )
+        self.bulkModB = cl.Buffer(getContext(), mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=bulkModNP)
         edgeVectorsNP = referenceEdgeVectors.reshape(9 * numTetra, order="F").astype(np.float64)
-        self.edgeVectorsB = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=edgeVectorsNP)
+        self.edgeVectorsB = cl.Buffer(
+            getContext(), mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=edgeVectorsNP
+        )
         self.volumesB = cl.Buffer(
-            ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=referenceVolumes.astype(np.float64)
+            getContext(),
+            mf.READ_ONLY | mf.COPY_HOST_PTR,
+            hostbuf=referenceVolumes.astype(np.float64),
         )
         # Compile Kernel and set arguments
         self.prg = cl.Program(
-            ctx, readKernel(kernels / "InteractionMooneyRivlinStress.cl", numPoints, numTetra)
+            getContext(),
+            readKernel(kernels / "InteractionMooneyRivlinStress.cl", numPoints, numTetra),
         ).build()
         self.knl = self.prg.Interaction_MooneyRivlinStress
         self.knl.set_args(
@@ -389,33 +412,47 @@ class InteractionFiniteStrainViscoplastic(Interaction):
             np.float64
         )
 
-        self.shearMod1B = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=shearMod1NP)
-        self.shearMod2B = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=shearMod2NP)
-        self.bulkModB = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=bulkModNP)
-        self.flowExponentB = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=flowExponentNP)
-        self.yieldStressB = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=yieldStressNP)
-        self.flowRateB = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=flowRateNP)
+        self.shearMod1B = cl.Buffer(
+            getContext(), mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=shearMod1NP
+        )
+        self.shearMod2B = cl.Buffer(
+            getContext(), mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=shearMod2NP
+        )
+        self.bulkModB = cl.Buffer(getContext(), mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=bulkModNP)
+        self.flowExponentB = cl.Buffer(
+            getContext(), mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=flowExponentNP
+        )
+        self.yieldStressB = cl.Buffer(
+            getContext(), mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=yieldStressNP
+        )
+        self.flowRateB = cl.Buffer(
+            getContext(), mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=flowRateNP
+        )
         self.hardeningThreshholdB = cl.Buffer(
-            ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=hardeningThreshholdNP
+            getContext(), mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=hardeningThreshholdNP
         )
         self.hardeningExponentB = cl.Buffer(
-            ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=hardeningExponentNP
+            getContext(), mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=hardeningExponentNP
         )
         edgeVectorsNP = referenceEdgeVectors.reshape(9 * numTetra, order="F").astype(np.float64)
-        self.edgeVectorsB = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=edgeVectorsNP)
+        self.edgeVectorsB = cl.Buffer(
+            getContext(), mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=edgeVectorsNP
+        )
         self.volumesB = cl.Buffer(
-            ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=referenceVolumes.astype(np.float64)
+            getContext(),
+            mf.READ_ONLY | mf.COPY_HOST_PTR,
+            hostbuf=referenceVolumes.astype(np.float64),
         )
 
         self.accumulatedStrainB = cl.Buffer(
-            ctx, mf.READ_WRITE | mf.COPY_HOST_PTR, hostbuf=accumulatedStrainNP
+            getContext(), mf.READ_WRITE | mf.COPY_HOST_PTR, hostbuf=accumulatedStrainNP
         )
         self.plasticDeformationTensorB = cl.Buffer(
-            ctx, mf.READ_WRITE | mf.COPY_HOST_PTR, hostbuf=plasticDeformationTensorNP
+            getContext(), mf.READ_WRITE | mf.COPY_HOST_PTR, hostbuf=plasticDeformationTensorNP
         )
         # Compile Kernel and set arguments
         self.prg = cl.Program(
-            ctx,
+            getContext(),
             readKernel(
                 fluidx3d_lib / "InteractionFiniteStrainViscoplastic.cl",
                 numPoints,
@@ -465,17 +502,26 @@ class InteractionSecondOrderNeoHookean(Interaction):
         shearMod1NP = shearModulus1 * np.ones(numTetra).astype(np.float64)
         shearMod2NP = shearModulus2 * np.ones(numTetra).astype(np.float64)
         bulkModNP = bulkModulus * np.ones(numTetra).astype(np.float64)
-        self.shearMod1B = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=shearMod1NP)
-        self.shearMod2B = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=shearMod2NP)
-        self.bulkModB = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=bulkModNP)
+        self.shearMod1B = cl.Buffer(
+            getContext(), mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=shearMod1NP
+        )
+        self.shearMod2B = cl.Buffer(
+            getContext(), mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=shearMod2NP
+        )
+        self.bulkModB = cl.Buffer(getContext(), mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=bulkModNP)
         edgeVectorsNP = referenceEdgeVectors.reshape(9 * numTetra, order="F").astype(np.float64)
-        self.edgeVectorsB = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=edgeVectorsNP)
+        self.edgeVectorsB = cl.Buffer(
+            getContext(), mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=edgeVectorsNP
+        )
         self.volumesB = cl.Buffer(
-            ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=referenceVolumes.astype(np.float64)
+            getContext(),
+            mf.READ_ONLY | mf.COPY_HOST_PTR,
+            hostbuf=referenceVolumes.astype(np.float64),
         )
         # Compile Kernel and set arguments
         self.prg = cl.Program(
-            ctx, readKernel(kernels / "InteractionSecondOrderNeoHookean.cl", numPoints, numTetra)
+            getContext(),
+            readKernel(kernels / "InteractionSecondOrderNeoHookean.cl", numPoints, numTetra),
         ).build()
         self.knl = self.prg.Interaction_SecondOrderNeoHookean
         self.knl.set_args(
@@ -501,7 +547,7 @@ class InteractionHalfPlane(Interaction):
         self.forceConst = forceConst
         self.isBelow = isBelow
         self.prg = cl.Program(
-            ctx,
+            getContext(),
             readKernel(fluidx3d_lib / "InteractionHalfPlane.cl", numPoints, numTetra),
         ).build()
         self.knl = self.prg.Interaction_HalfPlane
@@ -529,7 +575,7 @@ class InteractionCalcCOM(Interaction):
         self.pointsB = pointsB
         self.comB = comB
         self.prg = cl.Program(
-            ctx,
+            getContext(),
             readKernel(kernels / "CalcCOM.cl", numPoints, numTetra),
         ).build()
         self.knl = self.prg.CalcCOM
@@ -544,7 +590,7 @@ class InteractionCOMForce(Interaction):
         self.springConst = springConst
         self.comB = comB
         self.prg = cl.Program(
-            ctx,
+            getContext(),
             readKernel(kernels / "COMForce.cl", numPoints, numTetra),
         ).build()
         self.knl = self.prg.COMForce
@@ -558,7 +604,7 @@ class InteractionPointZeroForce(Interaction):
         self.pointsB = pointsB
         self.springConst = springConst
         self.prg = cl.Program(
-            ctx,
+            getContext(),
             readKernel(kernels / "PointZeroForce.cl", numPoints, numTetra),
         ).build()
         self.knl = self.prg.PointZeroForce
@@ -577,7 +623,7 @@ class InteractionTip(Interaction):
         self.posFunc = posFunc
         self.forceConst = forceConst
         self.prg = cl.Program(
-            ctx,
+            getContext(),
             readKernel(fluidx3d_lib / "InteractionTip.cl", numPoints, numTetra),
         ).build()
         self.knl = self.prg.Interaction_Tip
@@ -630,29 +676,40 @@ class InteractionLinearViscoelastic(Interaction):
         )  # [a,b,c]*3  turns into [a,b,c,a,b,c,a,b,c]
         relaxationTimesNP = np.array(relaxationTimes * numTetra).astype(np.float64)
 
-        self.youngsModB = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=youngsModulusNP)
-        self.poissonRatioB = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=poissonRatioNP)
-        edgeVectorsNP = referenceEdgeVectors.reshape(9 * numTetra, order="F").astype(np.float64)
-        self.edgeVectorsB = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=edgeVectorsNP)
-        self.volumesB = cl.Buffer(
-            ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=referenceVolumes.astype(np.float64)
+        self.youngsModB = cl.Buffer(
+            getContext(), mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=youngsModulusNP
         )
-        self.weightsB = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=weightsNP)
+        self.poissonRatioB = cl.Buffer(
+            getContext(), mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=poissonRatioNP
+        )
+        edgeVectorsNP = referenceEdgeVectors.reshape(9 * numTetra, order="F").astype(np.float64)
+        self.edgeVectorsB = cl.Buffer(
+            getContext(), mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=edgeVectorsNP
+        )
+        self.volumesB = cl.Buffer(
+            getContext(),
+            mf.READ_ONLY | mf.COPY_HOST_PTR,
+            hostbuf=referenceVolumes.astype(np.float64),
+        )
+        self.weightsB = cl.Buffer(getContext(), mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=weightsNP)
         self.relaxationsTimesB = cl.Buffer(
-            ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=relaxationTimesNP
+            getContext(), mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=relaxationTimesNP
         )
         self.deviatoricStressTensorsTransient = cl.Buffer(
-            ctx,
+            getContext(),
             mf.READ_ONLY | mf.COPY_HOST_PTR,
             hostbuf=np.zeros(9 * len(weights) * numTetra).astype(np.float64),
         )
         self.oldDeviatoricStrainTensor = cl.Buffer(
-            ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=np.zeros(9 * numTetra).astype(np.float64)
+            getContext(),
+            mf.READ_ONLY | mf.COPY_HOST_PTR,
+            hostbuf=np.zeros(9 * numTetra).astype(np.float64),
         )
 
         # Compile Kernel and set arguments
         self.prg = cl.Program(
-            ctx, readKernel(kernels / "InteractionLinearViscoelastic.cl", numPoints, numTetra)
+            getContext(),
+            readKernel(kernels / "InteractionLinearViscoelastic.cl", numPoints, numTetra),
         ).build()
         self.knl = self.prg.Interaction_LinearViscoelastic
         self.knl.set_args(
@@ -682,7 +739,7 @@ class InteractionSphereIntegral(Interaction):
         self.sphereFunc = sphereFunc
         self.forceConst = forceConst
         self.prg = cl.Program(
-            ctx, readKernel(kernels / "InteractionSphereIntegral.cl", numPoints, numTetra)
+            getContext(), readKernel(kernels / "InteractionSphereIntegral.cl", numPoints, numTetra)
         ).build()
         self.knl = self.prg.Interaction_SphereIntegral
         self.forceB = forceB
@@ -734,7 +791,7 @@ class InteractionTipIntegral(Interaction):
         self.tipX = tipX
         self.tipZ = tipZ
         self.prg = cl.Program(
-            ctx, readKernel(kernels / "InteractionTipIntegral.cl", numPoints, numTetra)
+            getContext(), readKernel(kernels / "InteractionTipIntegral.cl", numPoints, numTetra)
         ).build()
         self.knl = self.prg.Interaction_TipIntegral
         print(tetraB)
@@ -784,10 +841,10 @@ class InteractionAdhesivePlane(Interaction):
         self.distance = distance
         self.pointOnSurfaceNP = pointOnSurface
         self.pointOnSurfaceB = cl.Buffer(
-            ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=self.pointOnSurfaceNP
+            getContext(), mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=self.pointOnSurfaceNP
         )
         self.prg = cl.Program(
-            ctx, readKernel(kernels / "InteractionAdhesivePlane.cl", numPoints, numTetra)
+            getContext(), readKernel(kernels / "InteractionAdhesivePlane.cl", numPoints, numTetra)
         ).build()
         self.knl = self.prg.Interaction_AdhesivePlane
         self.knl.set_args(
@@ -831,7 +888,7 @@ class InteractionAdhesivePlaneSurfaceIntegral(Interaction):
         self.adhesionConst = adhesionConst
         self.distance = distance
         self.prg = cl.Program(
-            ctx,
+            getContext(),
             readKernel(
                 kernels / "InteractionAdhesivePlaneSurfaceIntegral.cl",
                 numPoints,
@@ -850,17 +907,61 @@ class InteractionAdhesivePlaneSurfaceIntegral(Interaction):
         )
 
 
+class InteractionHardAdhesivePlaneSurfaceIntegral(Interaction):
+    def __init__(
+        self,
+        numPoints,
+        numTetra,
+        numTriangle,
+        forceB,
+        pointsB,
+        triangleB,
+        wallFunc,
+        adhesionConst,
+        forceConst,
+    ):
+        Interaction.__init__(self, numTriangle)
+        self.forceB = forceB
+        self.pointsB = pointsB
+        self.triangleB = triangleB
+        self.wallFunc = wallFunc
+        self.adhesionConst = adhesionConst
+        self.forceConst = forceConst
+        self.prg = cl.Program(
+            getContext(),
+            readKernel(
+                kernels / "InteractionHardAdhesivePlaneSurfaceIntegral.cl",
+                numPoints,
+                numTetra,
+                numTriangle=numTriangle,
+            ),
+        ).build()
+        self.knl = self.prg.Interaction_HardAdhesivePlaneSurfaceIntegral
+        self.knl.set_args(
+            self.forceB,
+            self.pointsB,
+            self.triangleB,
+            ctypes.c_double(self.wallFunc(0)),
+            ctypes.c_double(self.adhesionConst),
+            ctypes.c_double(self.forceConst),
+        )
+
+
 class InteractionVelocityVerlet(Interaction):
     def __init__(self, numPoints, numTetra, forceB, pointsB, fixTopBottom):
         Interaction.__init__(self, numPoints)
         # create additional buffers for velocity and old forceB
         velocityNP = np.zeros(3 * numPoints).astype(np.float64)
         forceOldNP = np.zeros(3 * numPoints).astype(np.float64)
-        self.velocityB = cl.Buffer(ctx, mf.READ_WRITE | mf.COPY_HOST_PTR, hostbuf=velocityNP)
-        self.forceOldB = cl.Buffer(ctx, mf.READ_WRITE | mf.COPY_HOST_PTR, hostbuf=forceOldNP)
+        self.velocityB = cl.Buffer(
+            getContext(), mf.READ_WRITE | mf.COPY_HOST_PTR, hostbuf=velocityNP
+        )
+        self.forceOldB = cl.Buffer(
+            getContext(), mf.READ_WRITE | mf.COPY_HOST_PTR, hostbuf=forceOldNP
+        )
         # Compile Kernel and set arguments
         self.prg = cl.Program(
-            ctx,
+            getContext(),
             readKernel(kernels / "velocityVerlet.cl", numPoints, numTetra),
         ).build()
         if fixTopBottom:
@@ -877,11 +978,15 @@ class InteractionVelocityVerlet2(Interaction):
         # create additional buffers for velocity and old forceB
         velocityNP = np.zeros(3 * numPoints).astype(np.float64)
         forceOldNP = np.zeros(3 * numPoints).astype(np.float64)
-        self.velocityB = cl.Buffer(ctx, mf.READ_WRITE | mf.COPY_HOST_PTR, hostbuf=velocityNP)
-        self.forceOldB = cl.Buffer(ctx, mf.READ_WRITE | mf.COPY_HOST_PTR, hostbuf=forceOldNP)
+        self.velocityB = cl.Buffer(
+            getContext(), mf.READ_WRITE | mf.COPY_HOST_PTR, hostbuf=velocityNP
+        )
+        self.forceOldB = cl.Buffer(
+            getContext(), mf.READ_WRITE | mf.COPY_HOST_PTR, hostbuf=forceOldNP
+        )
         # Compile Kernel and set arguments
         self.prg = cl.Program(
-            ctx, readKernel(kernels / "velocityVerlet2.cl", numPoints, numTetra)
+            getContext(), readKernel(kernels / "velocityVerlet2.cl", numPoints, numTetra)
         ).build()
         self.knl = self.prg.VelocityVerlet2
         self.knl.set_args(
@@ -894,7 +999,7 @@ class InteractionOverDamped(Interaction):
         Interaction.__init__(self, numPoints)
         # Compile Kernel and set arguments
         self.prg = cl.Program(
-            ctx,
+            getContext(),
             readKernel(
                 kernels / "OverDamped.cl",
                 numPoints,

@@ -4,24 +4,24 @@ import time
 
 import numpy as np
 import pyopencl as cl
+from pyopencl import mem_flags as mf
 
 from nofluidx3d import Interactions as inter
 from nofluidx3d import TetraCell as tc
-from nofluidx3d.openCL import initializeOpenCLObjects
-from nofluidx3d.pyclParams import ctx, mf, queue
+from nofluidx3d.openCL import getCommandQueue, getContext, initializeOpenCLObjects
 
 
 class Bridge:
     def __init__(self, startarray, datatype):
         self.arrayC = startarray.astype(datatype)
-        self.buf = cl.Buffer(ctx, mf.READ_WRITE | mf.COPY_HOST_PTR, hostbuf=self.arrayC)
+        self.buf = cl.Buffer(getContext(), mf.READ_WRITE | mf.COPY_HOST_PTR, hostbuf=self.arrayC)
 
     def readFromGPU(self):
-        cl.enqueue_copy(queue, self.arrayC, self.buf)
+        cl.enqueue_copy(getCommandQueue(), self.arrayC, self.buf)
         return self.arrayC
 
     def writeToGPU(self):
-        cl.enqueue_copy(queue, self.buf, self.arrayC)
+        cl.enqueue_copy(getCommandQueue(), self.buf, self.arrayC)
 
 
 class Simulation:
@@ -777,6 +777,45 @@ class Simulation:
         )
         self.interactions.append(interPlane)
 
+    def setInteractionHardAdhesivePlaneNonDimensional(self, isSpherical=True):
+        if isSpherical:
+            wallpos = (
+                -self.parameters["CELL"]["RadiusSIM"] - self.parameters["AdhesivePlaneDistance"]
+            )
+        else:
+            wallpos = self.cell.mesh.points[4][1] - self.parameters["AdhesivePlaneDistance"]
+
+        def wallFunc(time):
+            return wallpos
+
+        self.triangles = self.cell.mesh.cells_dict[5]
+        self.numTriangles = len(self.triangles)
+        self.triangles = Bridge(
+            self.triangles.reshape(3 * self.numTriangles, order="F"), datatype=np.uint32
+        )
+        adhesionConst = (
+            self.parameters["AdhesionConstant"]
+            * self.parameters["CELL"]["YoungsModulusSI"]
+            * self.parameters["CELL"]["RadiusSI"]
+            / self.p0
+            / self.L0
+            / self.parameters["ReynoldScaling"]
+            / self.parameters["CELL"]["YoungsScaling"]
+        )
+        forceConst = self.parameters["PotentialForceConst"]
+        interPlane = inter.InteractionHardAdhesivePlaneSurfaceIntegral(
+            self.numPoints,
+            self.numTetra,
+            self.numTriangles,
+            self.force.buf,
+            self.points.buf,
+            self.triangles.buf,
+            wallFunc,
+            adhesionConst,
+            forceConst,
+        )
+        self.interactions.append(interPlane)
+
     def setInteractionLinearElastic(self):
         youngsModulusSI = self.parameters["CELL"]["YoungsModulusSI"]
         poissonRatio = self.parameters["CELL"]["PoissonRatio"]
@@ -1107,7 +1146,7 @@ class Simulation:
             starttimes.append(time.time())
             for t in range(self.VTKInterval):
                 self.timeStep()
-            queue.finish()
+            getCommandQueue().finish()
             endtimes.append(time.time())
             cycleTime = np.average(np.array(endtimes) - np.array(starttimes))
             vtktime = anatime2 - anatime1
