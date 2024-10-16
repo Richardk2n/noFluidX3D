@@ -1,6 +1,3 @@
-[tool.setuptools.package-data]
-"nofluidx3d" = ["py.typed"]
-
 [tool.black]
 line-length = 100
 include = '\.pyi?$'
