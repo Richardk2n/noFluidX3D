@@ -1,3 +1,6 @@
+[tool.setuptools.package-data]
+"nofluidx3d" = ["py.typed"]
+
 [tool.black]
 line-length = 100
 include = '\.pyi?$'
@@ -25,3 +28,7 @@ strict = false
 [tool.mypy]
 python_version = "3.8"
 plugins = ["numpy.typing.mypy_plugin"]
+
+[[tool.mypy.overrides]]
+module = "pyopencl.*"
+ignore_missing_imports = true

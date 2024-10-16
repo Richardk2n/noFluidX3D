@@ -1,5 +1,7 @@
 import pyopencl as cl
 
-ctx = cl.create_some_context()
-queue = cl.CommandQueue(ctx)
+from nofluidx3d.openCL import getCommandQueue, getContext, getDevice
+
+ctx = getContext()
+queue = getCommandQueue()
 mf = cl.mem_flags
