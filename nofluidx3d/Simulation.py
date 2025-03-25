@@ -1105,6 +1105,12 @@ class Simulation:
             print("| !!! Encountered NaN when reading positions from VRAM, exiting program !!! |")
             print("+---------------------------------------------------------------------------+")
             exit()
+        if np.any(np.isinf(positions)):
+            print("\n\n")
+            print("+---------------------------------------------------------------------------+")
+            print("| !!! Encountered INF when reading positions from VRAM, exiting program !!! |")
+            print("+---------------------------------------------------------------------------+")
+            exit()
         self.cell.mesh.points = positions
         if writeStress:
             stress = self.vonMises.readFromGPU()
