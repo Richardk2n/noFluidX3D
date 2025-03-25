@@ -7,9 +7,11 @@ kernel void VelocityVerlet(volatile global ibmPrecisionFloat* points, volatile g
 	ibmPrecisionFloat3 fOld = (ibmPrecisionFloat3)(oldParticleForce[pointID], oldParticleForce[INSERT_NUM_POINTS + pointID], oldParticleForce[2*INSERT_NUM_POINTS + pointID]);
 
 	// v belongs to last timestep, we calculate v(t) = v(t-1) + 0.5(f(t) + f(t-1) and then x(t+1) = x(t) + v(t) + 0.5 * f(t)
-	// 0.9 is a damping factor 
-	v = 0.9*v + 0.5 * (f + fOld);
-	x = x + v + 0.5 * f;
+	// xi is a damping factor
+	const double xi = 0.01;
+	v = (v*(1-0.5*xi) + 0.5 * (f + fOld))/(1+0.5*xi);
+
+	x = x + v*(1-0.5*xi) + 0.5 * f;
 	fOld = f;
 	
 	points[0*INSERT_NUM_POINTS + pointID] = x.x;
@@ -35,16 +37,18 @@ kernel void VelocityVerletFixedTopBottom(volatile global ibmPrecisionFloat* poin
 	ibmPrecisionFloat3 fOld = (ibmPrecisionFloat3)(oldParticleForce[pointID], oldParticleForce[INSERT_NUM_POINTS + pointID], oldParticleForce[2*INSERT_NUM_POINTS + pointID]);
 
 	// v belongs to last timestep, we calculate v(t) = v(t-1) + 0.5(f(t) + f(t-1) and then x(t+1) = x(t) + v(t) + 0.5 * f(t)
-	// 0.9 is a damping factor 
-	v = 0.9*v + 0.5 * (f + fOld);
-	x = x + v + 0.5 * f;
+	// xi is a damping factor
+	const double xi = 0.01;
+	v = (v*(1-0.5*xi) + 0.5 * (f + fOld))/(1+0.5*xi);
+
+	x = x + v*(1-0.5*xi) + 0.5 * f;
 	fOld = f;
 	
-	//if((pointID == 3) || (pointID == 4)){
-	if((pointID == 4)){
+	if((pointID == 3) || (pointID == 4)) {
 		x.x = 0.0;
 		x.z = 0.0;
 	}
+
 	points[0*INSERT_NUM_POINTS + pointID] = x.x;
 	points[1*INSERT_NUM_POINTS + pointID] = x.y;
 	points[2*INSERT_NUM_POINTS + pointID] = x.z;

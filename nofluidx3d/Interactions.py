@@ -5,7 +5,9 @@ import numpy as np
 import pyopencl as cl
 from pyopencl import mem_flags as mf
 
-from nofluidx3d.openCL import getCommandQueue, getContext
+from nofluidx3d.interactions.Interaction import Interaction
+from nofluidx3d.KernelBuilder import KernelBuilder
+from nofluidx3d.openCL import getContext
 
 fluidx3d_lib = Path(__file__).parents[2] / "fluidx3d_lib"
 kernels = Path(__file__).parent / "kernels"
@@ -29,18 +31,6 @@ def readKernel(path, numPoints, numTetra, point3fix=True, numTriangle=None):
         + kernelstring
     )
     return returnstring
-
-
-class Interaction:
-    def __init__(self, scope):
-        self.scope = scope
-        self.knl = None
-
-    def beforeTimeStep(self, globalTime):
-        pass
-
-    def queueKernel(self):
-        ev = cl.enqueue_nd_range_kernel(getCommandQueue(), self.knl, (self.scope,), None)
 
 
 class InteractionSphere(Interaction):
@@ -148,11 +138,10 @@ class InteractionPlaneAFM(Interaction):
         self.topWallFunc = topWallFunc
         self.bottomWallFunc = bottomWallFunc
         self.forceConst = forceConst
-        self.prg = cl.Program(
-            getContext(),
-            readKernel(fluidx3d_lib / "InteractionPlaneAFM.cl", numPoints, numTetra),
-        ).build()
-        self.knl = self.prg.Interaction_PlaneAFM
+        KernelBuilder.define(INSERT_NUM_POINTS=numPoints)
+        self.knl = KernelBuilder.build(
+            fluidx3d_lib / "InteractionPlaneAFM.cl", "Interaction_PlaneAFM"
+        )
         self.forceB = forceB
         self.pointsB = pointsB
         self.knl.set_args(

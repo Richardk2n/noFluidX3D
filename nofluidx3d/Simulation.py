@@ -1092,7 +1092,7 @@ class Simulation:
         for interaction in self.interactions:
             interaction.beforeTimeStep(self.time)
         for interaction in self.interactions:
-            interaction.queueKernel()
+            interaction.enqueue()
         self.time += 1
 
     def writeVTK(self, writeStress=True, writePressure=True, writeVolumeChange=False):
