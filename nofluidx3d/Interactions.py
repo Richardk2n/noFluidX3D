@@ -6,7 +6,6 @@ import pyopencl as cl
 from pyopencl import mem_flags as mf
 
 from nofluidx3d.interactions.Interaction import Interaction
-from nofluidx3d.KernelBuilder import KernelBuilder
 from nofluidx3d.openCL import getContext
 
 fluidx3d_lib = Path(__file__).parents[2] / "fluidx3d_lib"
@@ -126,38 +125,6 @@ class InteractionTiltedPlane(Interaction):
             self.pointsB,
             ctypes.c_double(self.angle),
             ctypes.c_double(self.positionFunc(globalTime)),
-            ctypes.c_double(self.forceConst),
-        )
-
-
-class InteractionPlaneAFM(Interaction):
-    def __init__(
-        self, numPoints, numTetra, forceB, pointsB, topWallFunc, bottomWallFunc, forceConst
-    ):
-        Interaction.__init__(self, numPoints)
-        self.topWallFunc = topWallFunc
-        self.bottomWallFunc = bottomWallFunc
-        self.forceConst = forceConst
-        KernelBuilder.define(INSERT_NUM_POINTS=numPoints)
-        self.knl = KernelBuilder.build(
-            fluidx3d_lib / "InteractionPlaneAFM.cl", "Interaction_PlaneAFM"
-        )
-        self.forceB = forceB
-        self.pointsB = pointsB
-        self.knl.set_args(
-            self.forceB,
-            self.pointsB,
-            ctypes.c_double(self.topWallFunc(0)),
-            ctypes.c_double(self.bottomWallFunc(0)),
-            ctypes.c_double(self.forceConst),
-        )
-
-    def beforeTimeStep(self, globalTime):
-        self.knl.set_args(
-            self.forceB,
-            self.pointsB,
-            ctypes.c_double(self.topWallFunc(globalTime)),
-            ctypes.c_double(self.bottomWallFunc(globalTime)),
             ctypes.c_double(self.forceConst),
         )
 
@@ -304,63 +271,6 @@ class InteractionPoroNeoHookean(Interaction):
             self.volumesB,
             self.shearB,
             self.volumeFractionB,
-            vonMisesB,
-            pressureB,
-        )
-
-
-class InteractionMooneyRivlin(Interaction):
-    def __init__(
-        self,
-        numPoints,
-        numTetra,
-        forceB,
-        pointsB,
-        tetraB,
-        referenceEdgeVectors,
-        referenceVolumes,
-        shearModulus1,
-        shearModulus2,
-        bulkModulus,
-        vonMisesB,
-        pressureB,
-    ):
-        Interaction.__init__(self, numTetra)
-        # create additional buffers for referenceEdgeVectors, referenceVolumes, youngsModulus and poissonratio
-        shearMod1NP = shearModulus1 * np.ones(numTetra).astype(np.float64)
-        shearMod2NP = shearModulus2 * np.ones(numTetra).astype(np.float64)
-        bulkModNP = bulkModulus * np.ones(numTetra).astype(np.float64)
-        self.shearMod1B = cl.Buffer(
-            getContext(), mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=shearMod1NP
-        )
-        self.shearMod2B = cl.Buffer(
-            getContext(), mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=shearMod2NP
-        )
-        self.bulkModB = cl.Buffer(getContext(), mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=bulkModNP)
-        edgeVectorsNP = referenceEdgeVectors.reshape(9 * numTetra, order="F").astype(np.float64)
-        self.edgeVectorsB = cl.Buffer(
-            getContext(), mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=edgeVectorsNP
-        )
-        self.volumesB = cl.Buffer(
-            getContext(),
-            mf.READ_ONLY | mf.COPY_HOST_PTR,
-            hostbuf=referenceVolumes.astype(np.float64),
-        )
-        # Compile Kernel and set arguments
-        self.prg = cl.Program(
-            getContext(),
-            readKernel(kernels / "InteractionMooneyRivlinStress.cl", numPoints, numTetra),
-        ).build()
-        self.knl = self.prg.Interaction_MooneyRivlinStress
-        self.knl.set_args(
-            forceB,
-            pointsB,
-            tetraB,
-            self.edgeVectorsB,
-            self.volumesB,
-            self.shearMod1B,
-            self.shearMod2B,
-            self.bulkModB,
             vonMisesB,
             pressureB,
         )
@@ -934,30 +844,6 @@ class InteractionHardAdhesivePlaneSurfaceIntegral(Interaction):
             ctypes.c_double(self.adhesionConst),
             ctypes.c_double(self.forceConst),
         )
-
-
-class InteractionVelocityVerlet(Interaction):
-    def __init__(self, numPoints, numTetra, forceB, pointsB, fixTopBottom):
-        Interaction.__init__(self, numPoints)
-        # create additional buffers for velocity and old forceB
-        velocityNP = np.zeros(3 * numPoints).astype(np.float64)
-        forceOldNP = np.zeros(3 * numPoints).astype(np.float64)
-        self.velocityB = cl.Buffer(
-            getContext(), mf.READ_WRITE | mf.COPY_HOST_PTR, hostbuf=velocityNP
-        )
-        self.forceOldB = cl.Buffer(
-            getContext(), mf.READ_WRITE | mf.COPY_HOST_PTR, hostbuf=forceOldNP
-        )
-        # Compile Kernel and set arguments
-        self.prg = cl.Program(
-            getContext(),
-            readKernel(kernels / "velocityVerlet.cl", numPoints, numTetra),
-        ).build()
-        if fixTopBottom:
-            self.knl = self.prg.VelocityVerletFixedTopBottom
-        else:
-            self.knl = self.prg.VelocityVerlet
-        self.knl.set_args(pointsB, self.velocityB, forceB, self.forceOldB)
 
 
 class InteractionVelocityVerlet2(Interaction):

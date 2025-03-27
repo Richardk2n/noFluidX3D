@@ -13,9 +13,25 @@ from nofluidx3d.openCL import getCommandQueue
 
 
 class Interaction:
-    def __init__(self, scope):
+
+    def __init__(self, scope=None):
         self.scope = scope
         self.knl = None
+
+    def register(self, simulation):
+        self.simulation = simulation
+        self.createBuffers()
+        self.build()
+        self.setArgs()
+
+    def createBuffers(self):
+        pass
+
+    def build(self):
+        pass
+
+    def setArgs(self):
+        pass
 
     def beforeTimeStep(self, globalTime):
         pass

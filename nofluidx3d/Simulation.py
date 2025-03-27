@@ -8,6 +8,7 @@ from pyopencl import mem_flags as mf
 
 from nofluidx3d import Interactions as inter
 from nofluidx3d import TetraCell as tc
+from nofluidx3d.interactions import MooneyRivlin, PlaneAFM, VelocityVerlet
 from nofluidx3d.openCL import getCommandQueue, getContext, initializeOpenCLObjects
 
 
@@ -117,6 +118,10 @@ class Simulation:
         )
         self.points.writeToGPU()
 
+    def register(self, interaction):
+        interaction.register(self)
+        self.interactions.append(interaction)
+
     def setShellEllipsoidalReferenceState(self, eccentricity, heteroFunc):
         shellReferenceCell = tc.TetraCell()
         shellReferenceCell.initFromVTK(
@@ -161,16 +166,12 @@ class Simulation:
             return -(self.parameters["CELL"]["RadiusSIM"] + self.parameters["InitialDistance"])
 
         forceConst = self.parameters["PotentialForceConst"]
-        interAFM = inter.InteractionPlaneAFM(
-            self.numPoints,
-            self.numTetra,
-            self.force.buf,
-            self.points.buf,
+        interAFM = PlaneAFM(
             topWallFunc,
             bottomWallFunc,
             forceConst,
         )
-        self.interactions.append(interAFM)
+        self.register(interAFM)
 
         # this records the distance the sphere has travelled
         def indentationSI():
@@ -878,23 +879,13 @@ class Simulation:
             / self.p0
         )
         mooneyRivlinRatio = self.parameters["CELL"]["MooneyRivlinRatio"]
-        shearModulus = youngsModulus / (2 * (1 + poissonRatio))
-        bulkModulus = youngsModulus / (3 * (1 - 2 * poissonRatio))
-        interMR = inter.InteractionMooneyRivlin(
-            self.numPoints,
-            self.numTetra,
-            self.force.buf,
-            self.points.buf,
-            self.tetras.buf,
-            self.cell.edgeVectors,
-            self.cell.volumes,
-            mooneyRivlinRatio * shearModulus,
-            (1 - mooneyRivlinRatio) * shearModulus,
-            bulkModulus,
-            self.vonMises.buf,
-            self.pressure.buf,
+        interMR = MooneyRivlin(
+            self.cell,
+            youngsModulus,
+            poissonRatio,
+            mooneyRivlinRatio,
         )
-        self.interactions.append(interMR)
+        self.register(interMR)
 
     def setInteractionNeoHookean(self, heteroFunction=None):
         youngsModulusSI = self.parameters["CELL"]["YoungsModulusSI"]
@@ -1059,10 +1050,8 @@ class Simulation:
 
     # Velocity Verlet Interaction, always add time integration interactions as last element in the list so that its kernel is queued last!
     def setInteractionVelocityVerlet(self, fixTopBottom=False):
-        interVV = inter.InteractionVelocityVerlet(
-            self.numPoints, self.numTetra, self.force.buf, self.points.buf, fixTopBottom
-        )
-        self.interactions.append(interVV)
+        interVV = VelocityVerlet(self.numPoints, fixTopBottom)
+        self.register(interVV)
 
     # Velocity Verlet Interaction, always add time integration interactions as last element in the list so that its kernel is queued last!
     # A more physically correct version of VV.
