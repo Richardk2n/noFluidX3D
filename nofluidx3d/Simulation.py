@@ -133,6 +133,16 @@ class Simulation:
             force = force_abs * (self.p0 * self.L0**2)
             return sum(force)
 
+        def forceSI():
+            dis = np.max(
+                [self.cell.mesh.points[:, 1] - topWallFunc(self.time), np.zeros(self.numPoints)], 0
+            )
+            print(f"Max dis: {np.max(dis)}")
+            pref = 0.1
+            force_abs = pref * ((dis + 1) ** 1 - 1)
+            force = force_abs * (self.p0 * self.L0**2)
+            return sum(force)
+
         if record:
             self.recordedQuantities.append(indentationSI)
             self.recordedQuantities.append(forceSI)

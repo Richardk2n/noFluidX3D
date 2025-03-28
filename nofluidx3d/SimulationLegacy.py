@@ -10,19 +10,7 @@ from nofluidx3d import Interactions as inter
 from nofluidx3d import TetraCell as tc
 from nofluidx3d.interactions import MooneyRivlin, PlaneAFM, VelocityVerlet
 from nofluidx3d.openCL import getCommandQueue, getContext, initializeOpenCLObjects
-
-
-class Bridge:
-    def __init__(self, startarray, datatype):
-        self.arrayC = startarray.astype(datatype)
-        self.buf = cl.Buffer(getContext(), mf.READ_WRITE | mf.COPY_HOST_PTR, hostbuf=self.arrayC)
-
-    def readFromGPU(self):
-        cl.enqueue_copy(getCommandQueue(), self.arrayC, self.buf)
-        return self.arrayC
-
-    def writeToGPU(self):
-        cl.enqueue_copy(getCommandQueue(), self.buf, self.arrayC)
+from nofluidx3d.util.Bridge import Bridge
 
 
 class Simulation:
@@ -143,55 +131,6 @@ class Simulation:
             / 6.0
             * np.abs(np.linalg.det(self.cell.edgeVectors.reshape(len(self.cell.edgeVectors), 3, 3)))
         )
-
-    def setInteractionPlaneAFM(self, record=True):
-        def topWallFunc(time):
-            if time <= self.parameters["MoveTimeSI"] / self.T0:
-                return (
-                    self.parameters["CELL"]["RadiusSIM"]
-                    + self.parameters["InitialDistance"]
-                    - self.parameters["VelocitySI"] / self.V0 * time
-                )
-            else:
-                return (
-                    self.parameters["CELL"]["RadiusSIM"]
-                    + self.parameters["InitialDistance"]
-                    - self.parameters["VelocitySI"]
-                    / self.V0
-                    * self.parameters["MoveTimeSI"]
-                    / self.T0
-                )
-
-        def bottomWallFunc(time):
-            return -(self.parameters["CELL"]["RadiusSIM"] + self.parameters["InitialDistance"])
-
-        forceConst = self.parameters["PotentialForceConst"]
-        interAFM = PlaneAFM(
-            topWallFunc,
-            bottomWallFunc,
-            forceConst,
-        )
-        self.register(interAFM)
-
-        # this records the distance the sphere has travelled
-        def indentationSI():
-            return (topWallFunc(0) - topWallFunc(self.time)) * self.L0
-
-        # this records the force exerted onto the sphere by the cell
-        def forceSI():
-            dis = topWallFunc(self.time) - self.cell.mesh.points[:, 1]
-            force_abs = np.exp(-forceConst * dis)
-            force = force_abs * (
-                self.p0
-                * self.L0**2
-                * self.parameters["ReynoldScaling"]
-                * self.parameters["CELL"]["YoungsScaling"]
-            )
-            return sum(force)
-
-        if record:
-            self.recordedQuantities.append(indentationSI)
-            self.recordedQuantities.append(forceSI)
 
     def setInteractionSphere(self, record=True, isSpherical=True):
         radius = self.parameters["SphereRadiusSI"] / self.L0
@@ -869,24 +808,6 @@ class Simulation:
         )
         self.interactions.append(interLE)
 
-    def setInteractionMooneyRivlin(self):
-        youngsModulusSI = self.parameters["CELL"]["YoungsModulusSI"]
-        poissonRatio = self.parameters["CELL"]["PoissonRatio"]
-        youngsModulus = (
-            youngsModulusSI
-            / self.parameters["ReynoldScaling"]
-            / self.parameters["CELL"]["YoungsScaling"]
-            / self.p0
-        )
-        mooneyRivlinRatio = self.parameters["CELL"]["MooneyRivlinRatio"]
-        interMR = MooneyRivlin(
-            self.cell,
-            youngsModulus,
-            poissonRatio,
-            mooneyRivlinRatio,
-        )
-        self.register(interMR)
-
     def setInteractionNeoHookean(self, heteroFunction=None):
         youngsModulusSI = self.parameters["CELL"]["YoungsModulusSI"]
         poissonRatio = self.parameters["CELL"]["PoissonRatio"]
@@ -1047,11 +968,6 @@ class Simulation:
             self.numPoints, self.numTetra, self.force.buf, self.points.buf, springConst
         )
         self.interactions.append(interPZF)
-
-    # Velocity Verlet Interaction, always add time integration interactions as last element in the list so that its kernel is queued last!
-    def setInteractionVelocityVerlet(self, fixTopBottom=False):
-        interVV = VelocityVerlet(self.numPoints, fixTopBottom)
-        self.register(interVV)
 
     # Velocity Verlet Interaction, always add time integration interactions as last element in the list so that its kernel is queued last!
     # A more physically correct version of VV.
