@@ -32,7 +32,7 @@ class Simulation:
         self.rho0 = self.parameters["RhoSI"] / rho
         self.L0 = self.parameters["CELL"]["RadiusSI"] / self.parameters["CELL"]["RadiusSIM"]
 
-        E = 1e-4
+        E = 1e-2
         self.p0 = self.parameters["CELL"]["YoungsModulusSI"] / E
 
         self.V0 = np.sqrt(self.p0 / self.rho0)
@@ -178,10 +178,10 @@ class Simulation:
         print("|         Starting Simulation        |")
         print("+------------------------------------+")
         print("\n\n")
+        print(f"VTKInterval: {self.VTKInterval}")
         starttimes = []
         endtimes = []
         numberCycles = self.parameters["VTKFramesTotal"]
-        dataPoints = None
 
         writeVTK(
             self,
@@ -189,28 +189,30 @@ class Simulation:
             writePressure=writePressure,
             writeVolumeChange=writeVolumeChange,
         )
+        newDataPoints = []
+        for quant in self.recordedQuantities:
+            newDataPoints.append(quant())
+        dataPoints = np.array(newDataPoints)
+        np.savetxt(self.parameters["OutputDir"] + "simdata.dat", dataPoints)
 
         for i in range(numberCycles):
-            anatime1 = time.time()
-            newDataPoints = []
-            for quant in self.recordedQuantities:
-                newDataPoints.append(quant())
-            if self.time == 0:  # if first frame
-                dataPoints = np.array(newDataPoints)
-            else:
-                dataPoints = np.vstack((dataPoints, newDataPoints))
-            np.savetxt(self.parameters["OutputDir"] + "simdata.dat", dataPoints)
-            anatime2 = time.time()
             starttimes.append(time.time())
             for t in range(self.VTKInterval):
                 self.timeStep()
             getCommandQueue().finish()
+            anatime1 = time.time()
             writeVTK(
                 self,
                 writeStress=writeStress,
                 writePressure=writePressure,
                 writeVolumeChange=writeVolumeChange,
             )
+            newDataPoints = []
+            for quant in self.recordedQuantities:
+                newDataPoints.append(quant())
+            dataPoints = np.vstack((dataPoints, newDataPoints))
+            np.savetxt(self.parameters["OutputDir"] + "simdata.dat", dataPoints)
+            anatime2 = time.time()
             endtimes.append(time.time())
             cycleTime = np.average(np.array(endtimes) - np.array(starttimes))
             vtktime = anatime2 - anatime1
