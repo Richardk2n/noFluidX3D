@@ -10,7 +10,14 @@ Created on Thu Mar 27 14:21:58 2025
 import json
 import os
 import time
-from warnings import deprecated
+
+try:
+    from warnings import deprecated  # Python 3.13
+except ImportError:
+
+    def deprecated(fun):
+        pass  # TODO write something useful
+
 
 import numpy as np
 
