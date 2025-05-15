@@ -10,11 +10,12 @@ Created on Thu Mar 27 14:21:58 2025
 import json
 import os
 import time
+from warnings import deprecated
 
 import numpy as np
 
 from nofluidx3d import TetraCell as tc
-from nofluidx3d.interactions import MooneyRivlin, PlaneAFM, Sphere, Substrate, VelocityVerlet
+from nofluidx3d.interactions import MooneyRivlin, Plane, PlaneAFM, Sphere, Substrate, VelocityVerlet
 from nofluidx3d.openCL import getCommandQueue, initializeOpenCLObjects
 from nofluidx3d.util.Bridge import Bridge
 from nofluidx3d.util.IO import writeVTK
@@ -103,8 +104,8 @@ class Simulation:
         )
         self.register(interSubstrate)
 
-    def setInteractionPlaneAFM(self, record=True):
-        def topWallFunc(time):
+    def setInteractionPlane(self, record=True):
+        def wallFunc(time):
             if time <= self.parameters["MoveTimeSI"] / self.T0:
                 return (
                     self.parameters["CELL"]["RadiusSIM"]
@@ -121,29 +122,24 @@ class Simulation:
                     / self.T0
                 )
 
-        def bottomWallFunc(time):
-            return -(self.parameters["CELL"]["RadiusSIM"] + self.parameters["InitialDistance"])
-
-        forceConst = self.parameters["PotentialForceConst"]
-        interAFM = PlaneAFM(
-            topWallFunc,
-            bottomWallFunc,
+        forceConst = 0.1  # self.parameters["PotentialForceConst"]
+        interPlane = Plane(
+            wallFunc,
             forceConst,
         )
-        self.register(interAFM)
+        self.register(interPlane)
 
         # this records the distance the sphere has travelled
         def indentationSI():
-            return (topWallFunc(0) - topWallFunc(self.time)) * self.L0
+            return (wallFunc(0) - wallFunc(self.time)) * self.L0
 
         # this records the force exerted onto the sphere by the cell
         def forceSI():
             dis = np.max(
-                [self.cell.mesh.points[:, 1] - topWallFunc(self.time), np.zeros(self.numPoints)], 0
+                [self.cell.mesh.points[:, 1] - wallFunc(self.time), np.zeros(self.numPoints)], 0
             )
             print(f"Max dis: {np.max(dis)}")
-            pref = 0.1
-            force_abs = pref * dis
+            force_abs = forceConst * dis
             force = force_abs * (self.p0 * self.L0**2)
             return sum(force)
 
@@ -177,7 +173,7 @@ class Simulation:
                     / self.T0
                 )
 
-        forceConst = self.parameters["PotentialForceConst"]
+        forceConst = 0.1  # self.parameters["PotentialForceConst"]
         interSphere = Sphere(
             radius,
             sphereFunc,
@@ -198,8 +194,7 @@ class Simulation:
             )
             dis = np.max([length - radius, np.zeros(self.numPoints)], 0)
             print(f"Max dis: {np.max(dis)}")
-            pref = 0.1
-            force_abs = pref * dis
+            force_abs = forceConst * dis
             force = (
                 np.stack((force_abs, force_abs, force_abs), axis=-1)
                 * normals
@@ -211,6 +206,54 @@ class Simulation:
                 )
             )
             return -sum(force[..., 1])
+
+        if record:
+            self.recordedQuantities.append(indentationSI)
+            self.recordedQuantities.append(forceSI)
+
+    @deprecated("Switch to Plane + Substrate")
+    def setInteractionPlaneAFM(self, record=True):
+        def topWallFunc(time):
+            if time <= self.parameters["MoveTimeSI"] / self.T0:
+                return (
+                    self.parameters["CELL"]["RadiusSIM"]
+                    + self.parameters["InitialDistance"]
+                    - self.parameters["VelocitySI"] / self.V0 * time
+                )
+            else:
+                return (
+                    self.parameters["CELL"]["RadiusSIM"]
+                    + self.parameters["InitialDistance"]
+                    - self.parameters["VelocitySI"]
+                    / self.V0
+                    * self.parameters["MoveTimeSI"]
+                    / self.T0
+                )
+
+        def bottomWallFunc(time):
+            return -(self.parameters["CELL"]["RadiusSIM"] + self.parameters["InitialDistance"])
+
+        forceConst = 0.1  # self.parameters["PotentialForceConst"]
+        interAFM = PlaneAFM(
+            topWallFunc,
+            bottomWallFunc,
+            forceConst,
+        )
+        self.register(interAFM)
+
+        # this records the distance the sphere has travelled
+        def indentationSI():
+            return (topWallFunc(0) - topWallFunc(self.time)) * self.L0
+
+        # this records the force exerted onto the sphere by the cell
+        def forceSI():
+            dis = np.max(
+                [self.cell.mesh.points[:, 1] - topWallFunc(self.time), np.zeros(self.numPoints)], 0
+            )
+            print(f"Max dis: {np.max(dis)}")
+            force_abs = forceConst * dis
+            force = force_abs * (self.p0 * self.L0**2)
+            return sum(force)
 
         if record:
             self.recordedQuantities.append(indentationSI)

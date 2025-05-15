@@ -22,7 +22,9 @@ class Substrate(Interaction):
 
     def build(self):
         self.scope = self.simulation.numPoints
-        KernelBuilder.define(INSERT_NUM_POINTS=self.simulation.numPoints)
+        KernelBuilder.define(
+            INSERT_NUM_POINTS=self.simulation.numPoints, def_FORCE_CONST=self.forceConst
+        )
         self.knl = KernelBuilder.build(
             kernels / "Interactions" / "Substrate.cl", "Interaction_Substrate"
         )
@@ -32,5 +34,4 @@ class Substrate(Interaction):
             self.simulation.force.buf,
             self.simulation.points.buf,
             ctypes.c_double(self.wallPosition),
-            ctypes.c_double(self.forceConst),
         )

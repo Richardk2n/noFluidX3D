@@ -2,7 +2,7 @@
 """
 File to house the  class.
 
-Created on Thu Mar 27 12:20:26 2025
+Created on Thu May 15 14:42:11 2025
 
 @author: Richard Kellnberger
 """
@@ -15,10 +15,9 @@ from nofluidx3d.KernelBuilder import KernelBuilder
 kernels = Path(__file__).parents[1] / "kernels"
 
 
-class PlaneAFM(Interaction):
-    def __init__(self, topWallFunc, bottomWallFunc, forceConst):
-        self.topWallFunc = topWallFunc
-        self.bottomWallFunc = bottomWallFunc
+class Plane(Interaction):
+    def __init__(self, wallFunc, forceConst):
+        self.wallFunc = wallFunc
         self.forceConst = forceConst
 
         self.globalTime = 0
@@ -28,16 +27,13 @@ class PlaneAFM(Interaction):
         KernelBuilder.define(
             INSERT_NUM_POINTS=self.simulation.numPoints, def_FORCE_CONST=self.forceConst
         )
-        self.knl = KernelBuilder.build(
-            kernels / "Interactions" / "PlaneAFM.cl", "Interaction_PlaneAFM"
-        )
+        self.knl = KernelBuilder.build(kernels / "Interactions" / "Plane.cl", "Interaction_Plane")
 
     def setArgs(self):
         self.knl.set_args(
             self.simulation.force.buf,
             self.simulation.points.buf,
-            ctypes.c_double(self.topWallFunc(self.globalTime)),
-            ctypes.c_double(self.bottomWallFunc(self.globalTime)),
+            ctypes.c_double(self.wallFunc(self.globalTime)),
         )
 
     def beforeTimeStep(self, globalTime):

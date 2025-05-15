@@ -1,4 +1,4 @@
-kernel void Interaction_Sphere(volatile global ibmPrecisionFloat* particleForce, const global ibmPrecisionFloat* points, const ibmPrecisionFloat radius, const ibmPrecisionFloat spherePos, const ibmPrecisionFloat forceConst){
+kernel void Interaction_Sphere(volatile global ibmPrecisionFloat* particleForce, const global ibmPrecisionFloat* points, const ibmPrecisionFloat radius, const ibmPrecisionFloat spherePos){
 	const uint pointID = get_global_id(0);
 	if(pointID>=INSERT_NUM_POINTS) return;
 	// No atomicAdd, because force on each point can be calculated independently -> probably faster!
@@ -9,8 +9,7 @@ kernel void Interaction_Sphere(volatile global ibmPrecisionFloat* particleForce,
 	ibmPrecisionFloat3 r = pos - sphere;
 	const ibmPrecisionFloat3 n = normalize(r);
 	const ibmPrecisionFloat dis =  max(length(r) - radius, 0.);
-	const ibmPrecisionFloat pref = 0.1;
-	const ibmPrecisionFloat3 force = pref * dis * n;
+	const ibmPrecisionFloat3 force = def_FORCE_CONST * dis * n;
 
 	particleForce[pointID] += force.x;
 	particleForce[INSERT_NUM_POINTS + pointID] += force.y;
