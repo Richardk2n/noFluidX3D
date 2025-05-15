@@ -25,7 +25,9 @@ class Sphere(Interaction):
 
     def build(self):
         self.scope = self.simulation.numPoints
-        KernelBuilder.define(INSERT_NUM_POINTS=self.simulation.numPoints)
+        KernelBuilder.define(
+            INSERT_NUM_POINTS=self.simulation.numPoints, def_FORCE_CONST=self.forceConst
+        )
         self.knl = KernelBuilder.build(kernels / "Interactions" / "Sphere.cl", "Interaction_Sphere")
 
     def setArgs(self):
