@@ -8,7 +8,7 @@ kernel void VelocityVerlet(volatile global ibmPrecisionFloat* points, volatile g
 
 	// v belongs to last timestep, we calculate v(t) = v(t-1) + 0.5(f(t) + f(t-1) and then x(t+1) = x(t) + v(t) + 0.5 * f(t)
 	// xi is a damping factor
-	const double xi = 0.01;
+	const double xi = 0.005;
 	v = (v*(1-0.5*xi) + 0.5 * (f + fOld))/(1+0.5*xi);
 
 	x = x + v*(1-0.5*xi) + 0.5 * f;

@@ -14,7 +14,7 @@ import time
 import numpy as np
 
 from nofluidx3d import TetraCell as tc
-from nofluidx3d.interactions import MooneyRivlin, PlaneAFM, VelocityVerlet
+from nofluidx3d.interactions import MooneyRivlin, PlaneAFM, Sphere, VelocityVerlet
 from nofluidx3d.openCL import getCommandQueue, initializeOpenCLObjects
 from nofluidx3d.util.Bridge import Bridge
 from nofluidx3d.util.IO import writeVTK
@@ -128,20 +128,79 @@ class Simulation:
 
         # this records the force exerted onto the sphere by the cell
         def forceSI():
-            dis = topWallFunc(self.time) - self.cell.mesh.points[:, 1]
-            force_abs = np.exp(-forceConst * dis)
-            force = force_abs * (self.p0 * self.L0**2)
-            return sum(force)
-
-        def forceSI():
             dis = np.max(
                 [self.cell.mesh.points[:, 1] - topWallFunc(self.time), np.zeros(self.numPoints)], 0
             )
             print(f"Max dis: {np.max(dis)}")
             pref = 0.1
-            force_abs = pref * ((dis + 1) ** 1 - 1)
+            force_abs = pref * dis
             force = force_abs * (self.p0 * self.L0**2)
             return sum(force)
+
+        if record:
+            self.recordedQuantities.append(indentationSI)
+            self.recordedQuantities.append(forceSI)
+
+    def setInteractionSphere(self, record=True, isSpherical=True):
+        radius = self.parameters["SphereRadiusSI"] / self.L0
+        if isSpherical:
+            sphereStartingPos = (
+                self.parameters["CELL"]["RadiusSIM"] + radius + self.parameters["InitialDistance"]
+            )
+        else:
+            sphereStartingPos = (
+                self.cell.mesh.points[3][1] + radius + self.parameters["InitialDistance"]
+            )
+        print(
+            f"DEBUG: sphereStartingPos = {sphereStartingPos}, lowest point = {sphereStartingPos - radius}"
+        )
+
+        def sphereFunc(time):
+            if time <= self.parameters["MoveTimeSI"] / self.T0:
+                return sphereStartingPos - self.parameters["VelocitySI"] / self.V0 * time
+            else:
+                return (
+                    sphereStartingPos
+                    - self.parameters["VelocitySI"]
+                    / self.V0
+                    * self.parameters["MoveTimeSI"]
+                    / self.T0
+                )
+
+        forceConst = self.parameters["PotentialForceConst"]
+        interSphere = Sphere(
+            radius,
+            sphereFunc,
+            forceConst,
+        )
+        self.register(interSphere)
+
+        # this records the distance the sphere has travelled
+        def indentationSI():
+            return (sphereFunc(0) - sphereFunc(self.time)) * self.L0
+
+        # this records the force exerted onto the sphere by the cell
+        def forceSI():
+            sphereposvec = np.array([0, sphereFunc(self.time), 0])
+            length = np.linalg.norm(sphereposvec - self.cell.mesh.points, axis=-1)
+            normals = (self.cell.mesh.points - sphereposvec) / np.stack(
+                (length, length, length), axis=-1
+            )
+            dis = np.max([length - radius, np.zeros(self.numPoints)], 0)
+            print(f"Max dis: {np.max(dis)}")
+            pref = 0.1
+            force_abs = pref * dis
+            force = (
+                np.stack((force_abs, force_abs, force_abs), axis=-1)
+                * normals
+                * (
+                    self.p0
+                    * self.L0**2
+                    * self.parameters["ReynoldScaling"]
+                    * self.parameters["CELL"]["YoungsScaling"]
+                )
+            )
+            return -sum(force[..., 1])
 
         if record:
             self.recordedQuantities.append(indentationSI)

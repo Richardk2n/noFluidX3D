@@ -7,12 +7,13 @@ kernel void Interaction_RoundTip(volatile global ibmPrecisionFloat* particleForc
 	const ibmPrecisionFloat3 sphere = (ibmPrecisionFloat3)(0, spherePos, 0);
 
 	ibmPrecisionFloat3 r = pos - sphere;
-	if(pos.y > spherePos) {
+	if(pos.y > spherePos) { // cylinder
 		r.y = 0;
 	}
-	const ibmPrecisionFloat3 n = r / length(r);
-	const ibmPrecisionFloat dis = length(r) - radius;
-	const ibmPrecisionFloat3 force = exp(-forceConst * dis) * n;
+	const ibmPrecisionFloat3 n = normalize(r);
+	const ibmPrecisionFloat dis =  max(length(r) - radius, 0.);
+	const ibmPrecisionFloat pref = 0.1;
+	const ibmPrecisionFloat3 force = pref * dis * n;
 
 	particleForce[pointID] += force.x;
 	particleForce[INSERT_NUM_POINTS + pointID] += force.y;
