@@ -8,7 +8,7 @@ kernel void Interaction_Sphere(volatile global ibmPrecisionFloat* particleForce,
 
 	ibmPrecisionFloat3 r = pos - sphere;
 	const ibmPrecisionFloat3 n = normalize(r);
-	const ibmPrecisionFloat dis =  max(length(r) - radius, 0.);
+	const ibmPrecisionFloat dis =  max(radius-length(r), 0.);
 	const ibmPrecisionFloat3 force = def_FORCE_CONST * dis * n;
 
 	particleForce[pointID] += force.x;
