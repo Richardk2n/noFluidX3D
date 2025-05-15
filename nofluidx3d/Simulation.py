@@ -14,7 +14,7 @@ import time
 import numpy as np
 
 from nofluidx3d import TetraCell as tc
-from nofluidx3d.interactions import MooneyRivlin, PlaneAFM, Sphere, VelocityVerlet
+from nofluidx3d.interactions import MooneyRivlin, PlaneAFM, Sphere, Substrate, VelocityVerlet
 from nofluidx3d.openCL import getCommandQueue, initializeOpenCLObjects
 from nofluidx3d.util.Bridge import Bridge
 from nofluidx3d.util.IO import writeVTK
@@ -92,6 +92,16 @@ class Simulation:
     def register(self, interaction):
         interaction.register(self)
         self.interactions.append(interaction)
+
+    def setInteractionSubstrate(self):
+        wallPosition = -(self.parameters["CELL"]["RadiusSIM"] + self.parameters["InitialDistance"])
+
+        forceConst = 0.1  # self.parameters["PotentialForceConst"]
+        interSubstrate = Substrate(
+            wallPosition,
+            forceConst,
+        )
+        self.register(interSubstrate)
 
     def setInteractionPlaneAFM(self, record=True):
         def topWallFunc(time):
