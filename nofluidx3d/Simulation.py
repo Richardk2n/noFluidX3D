@@ -208,12 +208,7 @@ class Simulation:
             force = (
                 np.stack((force_abs, force_abs, force_abs), axis=-1)
                 * normals
-                * (
-                    self.p0
-                    * self.L0**2
-                    * self.parameters["ReynoldScaling"]
-                    * self.parameters["CELL"]["YoungsScaling"]
-                )
+                * (self.p0 * self.L0**2)
             )
             return -sum(force[..., 1])
 
