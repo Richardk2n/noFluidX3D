@@ -202,7 +202,7 @@ class Simulation:
             normals = (self.cell.mesh.points - sphereposvec) / np.stack(
                 (length, length, length), axis=-1
             )
-            dis = np.max([length - radius, np.zeros(self.numPoints)], 0)
+            dis = np.max([radius - length, np.zeros(self.numPoints)], 0)
             print(f"Max dis: {np.max(dis)}")
             force_abs = forceConst * dis
             force = (
