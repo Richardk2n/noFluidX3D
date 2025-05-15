@@ -39,13 +39,10 @@ class VelocityVerlet(Interaction):
         self.scope = self.simulation.numPoints
         KernelBuilder.define(INSERT_NUM_POINTS=self.simulation.numPoints)
         if self.fixTopBottom:
-            self.knl = KernelBuilder.build(
-                kernels / "Interactions" / "VelocityVerlet.cl", "VelocityVerletFixedTopBottom"
-            )
-        else:
-            self.knl = KernelBuilder.build(
-                kernels / "Interactions" / "VelocityVerlet.cl", "VelocityVerlet"
-            )
+            KernelBuilder.define("FIXED_TOP_BOTTOM")
+        self.knl = KernelBuilder.build(
+            kernels / "Interactions" / "VelocityVerlet.cl", "VelocityVerlet"
+        )
 
     def setArgs(self):
         self.knl.set_args(
