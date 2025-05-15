@@ -36,7 +36,6 @@ class Sphere(Interaction):
             self.simulation.points.buf,
             ctypes.c_double(self.radius),
             ctypes.c_double(self.sphereFunc(self.globalTime)),
-            ctypes.c_double(self.forceConst),
         )
 
     def beforeTimeStep(self, globalTime):
