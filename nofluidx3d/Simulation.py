@@ -15,8 +15,11 @@ try:
     from warnings import deprecated  # Python 3.13
 except ImportError:
 
-    def deprecated(fun):
-        pass  # TODO write something useful
+    def deprecated(message: str):  # TODO write something useful
+        def decorator(fun):
+            return fun
+
+        return decorator
 
 
 import numpy as np
