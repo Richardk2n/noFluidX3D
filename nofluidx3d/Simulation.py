@@ -25,7 +25,15 @@ except ImportError:
 import numpy as np
 
 from nofluidx3d import TetraCell as tc
-from nofluidx3d.interactions import MooneyRivlin, Plane, PlaneAFM, Sphere, Substrate, VelocityVerlet
+from nofluidx3d.interactions import (
+    LinearElastic,
+    MooneyRivlin,
+    Plane,
+    PlaneAFM,
+    Sphere,
+    Substrate,
+    VelocityVerlet,
+)
 from nofluidx3d.openCL import getCommandQueue, initializeOpenCLObjects
 from nofluidx3d.util.Bridge import Bridge
 from nofluidx3d.util.IO import writeVTK
@@ -263,6 +271,17 @@ class Simulation:
         if record:
             self.recordedQuantities.append(indentationSI)
             self.recordedQuantities.append(forceSI)
+
+    def setInteractionLinearElastic(self):
+        youngsModulusSI = self.parameters["CELL"]["YoungsModulusSI"]
+        poissonRatio = self.parameters["CELL"]["PoissonRatio"]
+        youngsModulus = youngsModulusSI / self.p0
+        interLE = LinearElastic(
+            self.cell,
+            youngsModulus,
+            poissonRatio,
+        )
+        self.register(interLE)
 
     def setInteractionMooneyRivlin(self):
         youngsModulusSI = self.parameters["CELL"]["YoungsModulusSI"]
