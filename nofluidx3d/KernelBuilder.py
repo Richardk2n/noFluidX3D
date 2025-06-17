@@ -14,7 +14,12 @@ import pyopencl as cl
 from nofluidx3d.openCL import getContext
 
 kernels = Path(__file__).parent / "kernels"
-dependencies = [kernels / "typedefs.h", kernels / "atomicAdd.cl"]
+dependencies = [
+    kernels / "typedefs.h",
+    kernels / "atomicAdd.cl",
+    kernels / "matrix.h",
+    kernels / "matrix.cl",
+]
 
 
 class KernelBuilder:
