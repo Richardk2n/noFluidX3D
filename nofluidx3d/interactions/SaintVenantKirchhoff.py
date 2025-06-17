@@ -19,7 +19,7 @@ from nofluidx3d.openCL import getContext
 kernels = Path(__file__).parents[1] / "kernels"
 
 
-class LinearElastic(Interaction):
+class SaintVenantKirchhoff(Interaction):
     def __init__(
         self,
         referenceCell,
@@ -56,7 +56,8 @@ class LinearElastic(Interaction):
             def_tetraPoissonRatio=self.poissonRatio,
         )
         self.knl = KernelBuilder.build(
-            kernels / "Interactions" / "LinearElasticStress.cl", "Interaction_LinearElasticStress"
+            kernels / "Interactions" / "SaintVenantKirchhoffStress.cl",
+            "Interaction_SaintVenantKirchhoffStress",
         )
 
     def setArgs(self):

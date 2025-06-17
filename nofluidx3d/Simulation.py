@@ -26,10 +26,10 @@ import numpy as np
 
 from nofluidx3d import TetraCell as tc
 from nofluidx3d.interactions import (
-    LinearElastic,
     MooneyRivlin,
     Plane,
     PlaneAFM,
+    SaintVenantKirchhoff,
     Sphere,
     Substrate,
     VelocityVerlet,
@@ -272,11 +272,11 @@ class Simulation:
             self.recordedQuantities.append(indentationSI)
             self.recordedQuantities.append(forceSI)
 
-    def setInteractionLinearElastic(self):
+    def setInteractionSaintVenantKirchhoff(self):
         youngsModulusSI = self.parameters["CELL"]["YoungsModulusSI"]
         poissonRatio = self.parameters["CELL"]["PoissonRatio"]
         youngsModulus = youngsModulusSI / self.p0
-        interLE = LinearElastic(
+        interLE = SaintVenantKirchhoff(
             self.cell,
             youngsModulus,
             poissonRatio,
