@@ -25,6 +25,7 @@ typedef struct Float3x3_t {
 
 Float3x3 INL OVL fromRows(const float3 r1, const float3 r2, const float3 r3);
 Float3x3 INL OVL fromColumns(const float3 c1, const float3 c2, const float3 c3);
+Float3x3 INL OVL dyadic(const float3 a, const float3 b);
 
 float3 INL OVL getRow(const Float3x3 matrix, const int i);
 float3 INL OVL getColumn(const Float3x3 matrix, const int j);
@@ -34,6 +35,7 @@ float INL OVL det(const Float3x3 m);
 Float3x3 INL OVL transpose(const Float3x3 m);
 Float3x3 INL OVL invert(const Float3x3 m);
 
+Float3x3 INL OVL add(const Float3x3 a, const Float3x3 b);
 Float3x3 INL OVL multiply(const Float3x3 a, const Float3x3 b);
 float3 INL OVL multiply(const Float3x3 m, const float3 v);
 Float3x3 INL OVL multiply(const Float3x3 m, const float s);
@@ -47,6 +49,7 @@ typedef struct Double3x3_t {
 
 Double3x3 INL OVL fromRows(const double3 r1, const double3 r2, const double3 r3);
 Double3x3 INL OVL fromColumns(const double3 c1, const double3 c2, const double3 c3);
+Double3x3 INL OVL dyadic(const double3 a, const double3 b);
 
 double3 INL OVL getRow(const Double3x3 matrix, const int i);
 double3 INL OVL getColumn(const Double3x3 matrix, const int j);
@@ -56,6 +59,7 @@ double INL OVL det(const Double3x3 m);
 Double3x3 INL OVL transpose(const Double3x3 m);
 Double3x3 INL OVL invert(const Double3x3 m);
 
+Double3x3 INL OVL add(const Double3x3 a, const Double3x3 b);
 Double3x3 INL OVL multiply(const Double3x3 a, const Double3x3 b);
 double3 INL OVL multiply(const Double3x3 m, const double3 v);
 Double3x3 INL OVL multiply(const Double3x3 m, const double s);
