@@ -36,31 +36,22 @@ kernel void Interaction_SaintVenantKirchhoffStress(volatile global forcePrecisio
 
 	/* Saint Venant-Kirchhoff ---> */
 	// some terms to shorten the force calculation
-	const tetraPrecisionFloat nuR = nu/(1 - 2*nu);
-	const double e = 6*V0; // TODO name
-	const double post = 2*(1 + nu)*pow(e,4);
-	const double pre = -E*V0/post;
+	const tetraPrecisionFloat kappa = nu/(1 - 2*nu);
+	const tetraPrecisionFloat volumeS = pown(6*V0, 2);
+	const tetraPrecisionFloat post = 2*(1 + nu)*pown(volumeS,2);
+	const tetraPrecisionFloat pre = -E*V0/post;
 
 	// Matrices
 	const tetraPrecisionFloat3x3 C = fromColumns(cross(R2, R3), cross(R3, R1), cross(R1, R2));
 	const tetraPrecisionFloat3x3 D = multiply(C, r);
-	const tetraPrecisionFloat3x3 tmp = multiply(unitTensor(tetraPrecisionFloat3x3), -pow(e,2));
 	const tetraPrecisionFloat3x3 G = multiply(transpose(D), D); // symmetric // rTCTCr
-	const tetraPrecisionFloat3x3 GP = add(multiply(transpose(D), D), tmp);
+	const tetraPrecisionFloat3x3 V = multiply(unitTensor(tetraPrecisionFloat3x3), -volumeS);
+	const tetraPrecisionFloat3x3 GP = add(G, V);
 	const tetraPrecisionFloat3x3 H = multiply(transpose(C), D); // CTCr
-
-	// G' = G - uT*pow(e,2)
-	// G' + uT*pow(e,2) = G
-	// HG = HG' + H*pow(e,2)
-	// Tr G' = Tr(G) - 3*pow(e,2)
-
-	// D' = D + uT*e
-	// D'T = DT + uT*e
-	// D'TD'' = DTD + De + DTe + e**2
 
 	// Force component calculation
 	// cf. Carina MT, p. 87, eq. (11.3) and pp. A-XI to A-XXII
-	const tetraPrecisionFloat3x3 term1 = multiply(H, nuR*Tr(GP));
+	const tetraPrecisionFloat3x3 term1 = multiply(H, kappa*Tr(GP));
 	const tetraPrecisionFloat3x3 term2 = multiply(H, GP);
 
 	const tetraPrecisionFloat3x3 F = multiply(add(term1, term2), pre);
