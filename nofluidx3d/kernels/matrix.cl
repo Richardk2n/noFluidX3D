@@ -75,7 +75,7 @@ Float3x3 INL OVL transpose(const Float3x3 m) {
 
 Float3x3 INL OVL invert(const Float3x3 m) {
 	// We could check for det(m) = 0 here
-	return devide(fromColumns(cross(getColumn(m, 2), getColumn(m, 3)), cross(getColumn(m, 3), getColumn(m, 1)), cross(getColumn(m, 1), getColumn(m, 2))), det(m));
+	return devide(fromRows(cross(getColumn(m, 2), getColumn(m, 3)), cross(getColumn(m, 3), getColumn(m, 1)), cross(getColumn(m, 1), getColumn(m, 2))), det(m));
 }
 
 Float3x3 INL OVL add(const Float3x3 a, const Float3x3 b) {
@@ -171,7 +171,7 @@ Double3x3 INL OVL transpose(const Double3x3 m) {
 
 Double3x3 INL OVL invert(const Double3x3 m) {
 	// We could check for det(m) = 0 here
-	return devide(fromColumns(cross(getColumn(m, 2), getColumn(m, 3)), cross(getColumn(m, 3), getColumn(m, 1)), cross(getColumn(m, 1), getColumn(m, 2))), det(m));
+	return devide(fromRows(cross(getColumn(m, 2), getColumn(m, 3)), cross(getColumn(m, 3), getColumn(m, 1)), cross(getColumn(m, 1), getColumn(m, 2))), det(m));
 }
 
 Double3x3 INL OVL add(const Double3x3 a, const Double3x3 b) {
