@@ -60,7 +60,7 @@ kernel void Interaction_MooneyRivlinStress(volatile global ibmPrecisionFloat* pa
 	const ibmPrecisionFloat3 B3 = (ibmPrecisionFloat3)(dot(F3, F1), dot(F3, F2), dot(F3, F3));
 
 	// Calculation of Jacobian Determinant from Green Strain
-	const ibmPrecisionFloat J = sqrt(dot(cross(B1,B2),B3));
+	const ibmPrecisionFloat J = sqrt(dot(cross(B1,B2),B3)); // TODO this is just det(F)
 	
 	// Square of Green Strain
 	const ibmPrecisionFloat3 Bsq1 = (ibmPrecisionFloat3)(B1.x*B1.x + B1.y*B2.x + B1.z*B3.x, B1.x*B1.y + B1.y*B2.y + B1.z*B3.y, B1.x*B1.z + B1.y*B2.z + B1.z*B3.z);

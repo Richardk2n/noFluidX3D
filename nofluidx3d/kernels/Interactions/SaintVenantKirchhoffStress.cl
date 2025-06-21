@@ -31,30 +31,47 @@ kernel void Interaction_SaintVenantKirchhoffStress(volatile global forcePrecisio
 	const tetraPrecisionFloat3 R3 = (tetraPrecisionFloat3)(referenceEdgeVectors[6*def_tetraCount+tetraID], referenceEdgeVectors[7*def_tetraCount+tetraID], referenceEdgeVectors[8*def_tetraCount+tetraID]);
 	const tetraPrecisionFloat V0  = referenceVolumes[tetraID];
 
-	const double E = def_tetraYoungsModulus;
-	const double nu = def_tetraPoissonRatio;
+	// Calculation of displacement vector field replaced by use of JT
+	// cf. Carina MT, p. 23, eq. (5.1)
+	const tetraPrecisionFloat3x3 JT = fromRows(R1, R2, R3);
+
+	// Young's modulus and Poisson ratio
+	// cf. Carina MT, p. 40, eqs. (5.48) and (5.49)
+	const tetraPrecisionFloat E = def_tetraYoungsModulus;
+	const tetraPrecisionFloat nu = def_tetraPoissonRatio;
 
 	/* Saint Venant-Kirchhoff ---> */
 	// some terms to shorten the force calculation
 	const tetraPrecisionFloat kappa = nu/(1 - 2*nu);
-	const tetraPrecisionFloat volumeS = pown(6*V0, 2);
-	const tetraPrecisionFloat post = 2*(1 + nu)*pown(volumeS,2);
-	const tetraPrecisionFloat pre = -E*V0/post;
+	const tetraPrecisionFloat mu = E/(2*(1 + nu));
 
-	// Matrices
-	const tetraPrecisionFloat3x3 C = fromColumns(cross(R2, R3), cross(R3, R1), cross(R1, R2));
-	const tetraPrecisionFloat3x3 D = multiply(C, r);
-	const tetraPrecisionFloat3x3 G = multiply(transpose(D), D); // symmetric // rTCTCr
-	const tetraPrecisionFloat3x3 V = multiply(unitTensor(tetraPrecisionFloat3x3), -volumeS);
-	const tetraPrecisionFloat3x3 GP = add(G, V);
-	const tetraPrecisionFloat3x3 H = multiply(transpose(C), D); // CTCr
+	// Calculation of inverse Jacobian Matrix
+	// for Jacobian Matrix cf. Carina MT, p. 74, eq. (10.7)
+	const tetraPrecisionFloat3x3 invJT = invert(JT);
+
+	// Derivative of displacement field with respect to reference position
+	// cf. Carina MT, p. 72, eq. (10.3)
+	// for definition of displacement field cf. Carina MT, p. 57, eq. (10.1) and p. 72, eq. (10.2)
+	// The displacement field was replaced by the r matrix to avoid creating an unnecessary unit tensor
+	// dudR = invJT*u = invJT*(r - JT) = invJT*r - uT;
+	// Calculation of deformation gradient tensor components
+	// cf. Carina MT, p. 23, eq. (5.3)
+	const tetraPrecisionFloat3x3 FT = multiply(invJT, r); // FT = dudRP
+
+	// T: Trace of B (left Cauchy-Green deformation tensor) = F*F_transpose
+	// cf. Carina MT, p. 28, eq. (5.13)
+	const tetraPrecisionFloat3x3 B = multiply(transpose(FT), FT); // symmetric
+	const tetraPrecisionFloat3x3 BP = substract(B, unitTensor(tetraPrecisionFloat3x3));
+
+	// A term
+	const tetraPrecisionFloat3x3 H = multiply(transpose(invJT), FT);
 
 	// Force component calculation
 	// cf. Carina MT, p. 87, eq. (11.3) and pp. A-XI to A-XXII
-	const tetraPrecisionFloat3x3 term1 = multiply(H, kappa*Tr(GP));
-	const tetraPrecisionFloat3x3 term2 = multiply(H, GP);
+	const tetraPrecisionFloat3x3 term1 = multiply(H, kappa*Tr(BP));
+	const tetraPrecisionFloat3x3 term2 = multiply(H, BP);
 
-	const tetraPrecisionFloat3x3 F = multiply(add(term1, term2), pre);
+	const tetraPrecisionFloat3x3 F = multiply(add(term1, term2), -V0*mu);
 
 	const tetraPrecisionFloat3 f1 = getRow(F, 1);
 	const tetraPrecisionFloat3 f2 = getRow(F, 2);

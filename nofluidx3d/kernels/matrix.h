@@ -36,6 +36,7 @@ Float3x3 INL OVL transpose(const Float3x3 m);
 Float3x3 INL OVL invert(const Float3x3 m);
 
 Float3x3 INL OVL add(const Float3x3 a, const Float3x3 b);
+Float3x3 INL OVL substract(const Float3x3 a, const Float3x3 b);
 Float3x3 INL OVL multiply(const Float3x3 a, const Float3x3 b);
 float3 INL OVL multiply(const Float3x3 m, const float3 v);
 Float3x3 INL OVL multiply(const Float3x3 m, const float s);
@@ -60,6 +61,7 @@ Double3x3 INL OVL transpose(const Double3x3 m);
 Double3x3 INL OVL invert(const Double3x3 m);
 
 Double3x3 INL OVL add(const Double3x3 a, const Double3x3 b);
+Double3x3 INL OVL substract(const Double3x3 a, const Double3x3 b);
 Double3x3 INL OVL multiply(const Double3x3 a, const Double3x3 b);
 double3 INL OVL multiply(const Double3x3 m, const double3 v);
 Double3x3 INL OVL multiply(const Double3x3 m, const double s);

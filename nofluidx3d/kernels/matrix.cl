@@ -84,6 +84,12 @@ Float3x3 INL OVL add(const Float3x3 a, const Float3x3 b) {
 					getRow(a, 3)+getRow(b, 3));
 }
 
+Float3x3 INL OVL substract(const Float3x3 a, const Float3x3 b) {
+	return fromRows(getRow(a, 1)-getRow(b, 1),
+					getRow(a, 2)-getRow(b, 2),
+					getRow(a, 3)-getRow(b, 3));
+}
+
 Float3x3 INL OVL multiply(const Float3x3 a, const Float3x3 b) {
 	return (Float3x3) {
 		dot(getRow(a, 1), getColumn(b, 1)), dot(getRow(a, 1), getColumn(b, 2)), dot(getRow(a, 1), getColumn(b, 3)),
@@ -178,6 +184,12 @@ Double3x3 INL OVL add(const Double3x3 a, const Double3x3 b) {
 	return fromRows(getRow(a, 1)+getRow(b, 1),
 					getRow(a, 2)+getRow(b, 2),
 					getRow(a, 3)+getRow(b, 3));
+}
+
+Double3x3 INL OVL substract(const Double3x3 a, const Double3x3 b) {
+	return fromRows(getRow(a, 1)-getRow(b, 1),
+					getRow(a, 2)-getRow(b, 2),
+					getRow(a, 3)-getRow(b, 3));
 }
 
 Double3x3 INL OVL multiply(const Double3x3 a, const Double3x3 b) {
