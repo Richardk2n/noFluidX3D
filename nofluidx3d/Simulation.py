@@ -32,6 +32,7 @@ from nofluidx3d.interactions import (
     SaintVenantKirchhoff,
     Sphere,
     Substrate,
+    Tetra,
     VelocityVerlet,
 )
 from nofluidx3d.openCL import getCommandQueue, initializeOpenCLObjects
@@ -271,6 +272,17 @@ class Simulation:
         if record:
             self.recordedQuantities.append(indentationSI)
             self.recordedQuantities.append(forceSI)
+
+    def setInteractionTetra(self):
+        youngsModulusSI = self.parameters["CELL"]["YoungsModulusSI"]
+        poissonRatio = self.parameters["CELL"]["PoissonRatio"]
+        youngsModulus = youngsModulusSI / self.p0
+        inter = Tetra(
+            self.cell,
+            youngsModulus,
+            poissonRatio,
+        )
+        self.register(inter)
 
     def setInteractionSaintVenantKirchhoff(self):
         youngsModulusSI = self.parameters["CELL"]["YoungsModulusSI"]

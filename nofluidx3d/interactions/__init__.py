@@ -14,6 +14,7 @@ from nofluidx3d.interactions.PlaneAFM import PlaneAFM
 from nofluidx3d.interactions.SaintVenantKirchhoff import SaintVenantKirchhoff
 from nofluidx3d.interactions.Sphere import Sphere
 from nofluidx3d.interactions.Substrate import Substrate
+from nofluidx3d.interactions.Tetra import Tetra
 from nofluidx3d.interactions.VelocityVerlet import VelocityVerlet
 
 __all__ = [
@@ -23,5 +24,6 @@ __all__ = [
     "SaintVenantKirchhoff",
     "Sphere",
     "Substrate",
+    "Tetra",
     "VelocityVerlet",
 ]

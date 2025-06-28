@@ -46,6 +46,8 @@ class KernelBuilder:
         for d in KernelBuilder.defines:
             defines += f"#define {d}\n"
         for name, value in KernelBuilder.valuesDefines.items():
+            if isinstance(value, bool):
+                value = str(value).lower()
             defines += f"#define {name} {value}\n"
         return defines
 
