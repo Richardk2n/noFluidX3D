@@ -54,7 +54,7 @@ class Tetra(Interaction):
             def_tetraCount=self.simulation.numTetra,
             def_tetraYoungsModulus=self.youngsModulus,
             def_tetraPoissonRatio=self.poissonRatio,
-            TETRA_SAINT_VENANT_KIRCHHOFF_BIOT=True,
+            TETRA_SAINT_VENANT_KIRCHHOFF_KELLNBERGER=True,
             TETRA_SAINT_VENANT_KIRCHHOFF=False,
             TETRA_NEO_HOOKEAN=False,
         )

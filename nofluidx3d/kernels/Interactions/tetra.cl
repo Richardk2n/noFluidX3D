@@ -74,7 +74,7 @@ kernel void calcTetraForce(volatile global forcePrecisionFloat* particleForce, c
 	// matrix holding the forces
 	tetraPrecisionFloat3x3 Force;
 
-	if(TETRA_SAINT_VENANT_KIRCHHOFF_BIOT) {
+	if(TETRA_SAINT_VENANT_KIRCHHOFF_KELLNBERGER) {
 		// Young's modulus and Poisson ratio
 		// cf. Carina MT, p. 40, eqs. (5.48) and (5.49)
 		const tetraPrecisionFloat E = def_tetraYoungsModulus;
