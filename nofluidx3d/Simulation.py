@@ -277,13 +277,11 @@ class Simulation:
         youngsModulusSI = self.parameters["CELL"]["YoungsModulusSI"]
         poissonRatio = self.parameters["CELL"]["PoissonRatio"]
         youngsModulus = youngsModulusSI / self.p0
-        inter = Tetra(
-            self.cell,
-            youngsModulus,
-            poissonRatio,
-        )
+        model = Tetra.materialModel[self.parameters["CELL"]["model"]]
+        inter = Tetra(self.cell, youngsModulus, poissonRatio, model)
         self.register(inter)
 
+    @deprecated("Use setInteractionTetra instead")
     def setInteractionSaintVenantKirchhoff(self):
         youngsModulusSI = self.parameters["CELL"]["YoungsModulusSI"]
         poissonRatio = self.parameters["CELL"]["PoissonRatio"]

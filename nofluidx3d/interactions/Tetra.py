@@ -6,6 +6,7 @@ Created on Sun Jun 15 13:45:41 2025
 
 @author: Richard Kellnberger
 """
+from enum import Enum, auto
 from pathlib import Path
 
 import numpy as np
@@ -20,15 +21,22 @@ kernels = Path(__file__).parents[1] / "kernels"
 
 
 class Tetra(Interaction):
-    def __init__(
-        self,
-        referenceCell,
-        youngsModulus,
-        poissonRatio,
-    ):
+
+    class materialModel(Enum):
+        SAINT_VENANT_KIRCHHOFF_KELLNBERGER = auto()
+        SVKK = SAINT_VENANT_KIRCHHOFF_KELLNBERGER
+        SAINT_VENANT_KIRCHHOFF = auto()
+        SVK = SAINT_VENANT_KIRCHHOFF
+        NEO_HOOKEAN = auto()
+        NH = NEO_HOOKEAN
+        # MOONEY_RIVLIN = auto(), # TODO Not implemented
+        # MR = MOONEY_RIVLIN
+
+    def __init__(self, referenceCell, youngsModulus, poissonRatio, model=materialModel.NEO_HOOKEAN):
         self.referenceCell = referenceCell
         self.youngsModulus = youngsModulus
         self.poissonRatio = poissonRatio
+        self.model = model
 
     def createBuffers(self):
         numTetra = self.simulation.numTetra
@@ -54,9 +62,10 @@ class Tetra(Interaction):
             def_tetraCount=self.simulation.numTetra,
             def_tetraYoungsModulus=self.youngsModulus,
             def_tetraPoissonRatio=self.poissonRatio,
-            TETRA_SAINT_VENANT_KIRCHHOFF_KELLNBERGER=True,
-            TETRA_SAINT_VENANT_KIRCHHOFF=False,
-            TETRA_NEO_HOOKEAN=False,
+            TETRA_SAINT_VENANT_KIRCHHOFF_KELLNBERGER=self.model
+            == materialModel.SAINT_VENANT_KIRCHHOFF_KELLNBERGER,
+            TETRA_SAINT_VENANT_KIRCHHOFF=self.model == materialModel.SAINT_VENANT_KIRCHHOFF,
+            TETRA_NEO_HOOKEAN=self.model == materialModel.NEO_HOOKEAN,
         )
         self.knl = KernelBuilder.build(
             kernels / "Interactions" / "tetra.cl",
