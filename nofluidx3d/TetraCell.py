@@ -18,12 +18,12 @@ class TetraCell:
         self.radius = radius
         self.tetras = self.mesh.cells_dict[10]
         # Calculate the reference Edge vectors and the volumes of each tetrahedra
-        p1 = self.points[self.tetras[:, 0]]
-        p2 = self.points[self.tetras[:, 1]]
-        p3 = self.points[self.tetras[:, 2]]
-        p4 = self.points[self.tetras[:, 3]]
+        p0 = self.points[self.tetras[:, 0]]
+        p1 = self.points[self.tetras[:, 1]]
+        p2 = self.points[self.tetras[:, 2]]
+        p3 = self.points[self.tetras[:, 3]]
 
-        edgeVectors = np.array([p1 - p4, p2 - p4, p3 - p4])
+        edgeVectors = np.array([p1 - p0, p2 - p0, p3 - p0])
         edgeVectors = np.einsum("ijk -> jik", edgeVectors)
         self.edgeVectors = edgeVectors.reshape(len(edgeVectors), 9)
         self.volumes = 1.0 / 6.0 * np.abs(np.linalg.det(edgeVectors))
@@ -35,12 +35,12 @@ class TetraCell:
         self.points = self.mesh.points
         self.edgeVectors = []
         self.volumes = []
-        p1 = self.points[self.tetras[:, 0]]
-        p2 = self.points[self.tetras[:, 1]]
-        p3 = self.points[self.tetras[:, 2]]
-        p4 = self.points[self.tetras[:, 3]]
+        p0 = self.points[self.tetras[:, 0]]
+        p1 = self.points[self.tetras[:, 1]]
+        p2 = self.points[self.tetras[:, 2]]
+        p3 = self.points[self.tetras[:, 3]]
 
-        edgeVectors = np.array([p1 - p4, p2 - p4, p3 - p4])
+        edgeVectors = np.array([p1 - p0, p2 - p0, p3 - p0])
         edgeVectors = np.einsum("ijk -> jik", edgeVectors)
         self.edgeVectors = edgeVectors.reshape(len(edgeVectors), 9)
         self.volumes = 1.0 / 6.0 * np.abs(np.linalg.det(edgeVectors))
@@ -53,12 +53,12 @@ class TetraCell:
     def calcVolumeChange(self):
         curVolumes = []
         for tetra in self.tetras:
-            p1, p2, p3, p4 = tetra
+            p0, p1, p2, p3 = tetra
             tetraEdgeVectors = np.array(
                 [
-                    self.mesh.points[p1] - self.mesh.points[p4],
-                    self.mesh.points[p2] - self.mesh.points[p4],
-                    self.mesh.points[p3] - self.mesh.points[p4],
+                    self.mesh.points[p1] - self.mesh.points[p0],
+                    self.mesh.points[p2] - self.mesh.points[p0],
+                    self.mesh.points[p3] - self.mesh.points[p0],
                 ]
             )
             curVolumes.append(
@@ -76,7 +76,7 @@ class TetraCell:
         return sumData / self.tetras[:, 0].size
 
 
-class TetraCellDeformed(TetraCell):
+class TetraCellDeformed(TetraCell):  # TODO r1-4 -> r0-3
     def initFromVTK(self, path, radius=18.0):
         self.mesh = pv.core.pointset.UnstructuredGrid(pv.read(path), inplace=True)
         self.points = self.mesh.points

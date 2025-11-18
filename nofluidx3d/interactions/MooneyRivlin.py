@@ -67,7 +67,8 @@ class MooneyRivlin(Interaction):
     def build(self):
         self.scope = self.simulation.numTetra
         KernelBuilder.define(
-            INSERT_NUM_POINTS=self.simulation.numPoints, INSERT_NUM_TETRAS=self.simulation.numTetra
+            def_pointCount=self.simulation.numPoints,
+            def_tetraCount=self.simulation.numTetra,
         )
         self.knl = KernelBuilder.build(
             kernels / "Interactions" / "MooneyRivlinStress.cl", "Interaction_MooneyRivlinStress"
