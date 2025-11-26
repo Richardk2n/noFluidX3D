@@ -8,7 +8,6 @@ Created on Thu Mar 27 12:38:09 2025
 """
 
 
-from nofluidx3d.interactions.MooneyRivlin import MooneyRivlin
 from nofluidx3d.interactions.Plane import Plane
 from nofluidx3d.interactions.Sphere import Sphere
 from nofluidx3d.interactions.Substrate import Substrate
@@ -16,7 +15,6 @@ from nofluidx3d.interactions.Tetra import Tetra
 from nofluidx3d.interactions.VelocityVerlet import VelocityVerlet
 
 __all__ = [
-    "MooneyRivlin",
     "Plane",
     "Sphere",
     "Substrate",

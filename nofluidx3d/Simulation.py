@@ -225,20 +225,6 @@ class Simulation:
         inter = Tetra(self.cell, youngsModulus, poissonRatio, mooneyRivlinRatio, model)
         self.register(inter)
 
-    @deprecated("Use setInteractionTetra instead")
-    def setInteractionMooneyRivlin(self):
-        youngsModulusSI = self.parameters["CELL"]["YoungsModulusSI"]
-        poissonRatio = self.parameters["CELL"]["PoissonRatio"]
-        youngsModulus = youngsModulusSI / self.p0
-        mooneyRivlinRatio = self.parameters["CELL"]["MooneyRivlinRatio"]
-        interMR = MooneyRivlin(
-            self.cell,
-            youngsModulus,
-            poissonRatio,
-            mooneyRivlinRatio,
-        )
-        self.register(interMR)
-
     # Velocity Verlet Interaction, always add time integration interactions as last element in the list so that its kernel is queued last!
     def setInteractionVelocityVerlet(self, fixTopBottom=False):
         interVV = VelocityVerlet(self.numPoints, fixTopBottom)
