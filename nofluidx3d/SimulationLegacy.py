@@ -7,13 +7,20 @@ import pyopencl as cl
 from pyopencl import mem_flags as mf
 
 from nofluidx3d import Interactions as inter
-from nofluidx3d import TetraCell as tc
 from nofluidx3d.interactions import MooneyRivlin, PlaneAFM, VelocityVerlet
 from nofluidx3d.openCL import getCommandQueue, getContext, initializeOpenCLObjects
+from nofluidx3d.TetraCell import TetraCell
 from nofluidx3d.util.Bridge import Bridge
 
+try:
+    from warnings import deprecated  # Python 3.13
+except ImportError:
+    from nofluidx3d.util.decorators import deprecated
 
+
+@deprecated("Use new Simulation object")
 class Simulation:
+    @deprecated("Use new Simulation object")
     def __init__(self, con):
         configfile = open(con)
         self.parameters = json.load(configfile)
@@ -43,8 +50,7 @@ class Simulation:
         except:
             pass
 
-        self.cell = tc.TetraCell()
-        self.cell.initFromVTK(
+        self.cell = TetraCell(
             self.parameters["CELL"]["InitVTK"],
             radius=self.parameters["CELL"]["RadiusSIM"],
             recenter=True,
@@ -96,8 +102,7 @@ class Simulation:
 
     def initCheckPointVTK(self):
         vtkFile = self.parameters["CELL"]["CheckPointVTK"]
-        cellNew = tc.TetraCell()
-        cellNew.initFromVTK(vtkFile, radius=self.parameters["CELL"]["RadiusSIM"], recenter=False)
+        cellNew = TetraCell(vtkFile, radius=self.parameters["CELL"]["RadiusSIM"], recenter=False)
         # self.points = Bridge(cellNew.points.reshape(3*self.numPoints, order='F'), datatype=np.float64)
         self.cell.mesh.points = cellNew.mesh.points
         self.cell.points = self.cell.mesh.points
@@ -111,8 +116,7 @@ class Simulation:
         self.interactions.append(interaction)
 
     def setShellEllipsoidalReferenceState(self, eccentricity, heteroFunc):
-        shellReferenceCell = tc.TetraCell()
-        shellReferenceCell.initFromVTK(
+        shellReferenceCell = TetraCell(
             self.parameters["CELL"]["InitVTK"],
             radius=self.parameters["CELL"]["RadiusSIM"],
             recenter=True,

@@ -29,13 +29,21 @@ class Tetra(Interaction):
         SVK = SAINT_VENANT_KIRCHHOFF
         NEO_HOOKEAN = auto()
         NH = NEO_HOOKEAN
-        # MOONEY_RIVLIN = auto(), # TODO Not implemented
-        # MR = MOONEY_RIVLIN
+        MOONEY_RIVLIN = (auto(),)
+        MR = MOONEY_RIVLIN
 
-    def __init__(self, referenceCell, youngsModulus, poissonRatio, model=materialModel.NEO_HOOKEAN):
+    def __init__(
+        self,
+        referenceCell,
+        youngsModulus,
+        poissonRatio,
+        mooneyRivlinRatio=1,  # TODO make sure this is 1 for NH
+        model=materialModel.NEO_HOOKEAN,
+    ):
         self.referenceCell = referenceCell
         self.youngsModulus = youngsModulus
         self.poissonRatio = poissonRatio
+        self.mooneyRivlinRatio = mooneyRivlinRatio
         self.model = model
 
     def createBuffers(self):
@@ -62,10 +70,12 @@ class Tetra(Interaction):
             def_tetraCount=self.simulation.numTetra,
             def_tetraYoungsModulus=self.youngsModulus,
             def_tetraPoissonRatio=self.poissonRatio,
+            def_tetraMooneyRivlinRatio=self.mooneyRivlinRatio,
             TETRA_SAINT_VENANT_KIRCHHOFF_KELLNBERGER=self.model
-            == materialModel.SAINT_VENANT_KIRCHHOFF_KELLNBERGER,
-            TETRA_SAINT_VENANT_KIRCHHOFF=self.model == materialModel.SAINT_VENANT_KIRCHHOFF,
-            TETRA_NEO_HOOKEAN=self.model == materialModel.NEO_HOOKEAN,
+            == self.materialModel.SAINT_VENANT_KIRCHHOFF_KELLNBERGER,
+            TETRA_SAINT_VENANT_KIRCHHOFF=self.model == self.materialModel.SAINT_VENANT_KIRCHHOFF,
+            TETRA_MOONEY_RIVLIN=self.model == self.materialModel.MOONEY_RIVLIN
+            or self.model == self.materialModel.NEO_HOOKEAN,
         )
         self.knl = KernelBuilder.build(
             kernels / "Interactions" / "tetra.cl",

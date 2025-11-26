@@ -15,24 +15,24 @@ kernel void calcTetraForce(volatile global forcePrecisionFloat* particleForce, c
 	const uint tetraID = get_global_id(0);
 	if(tetraID>=def_tetraCount) return;
 
-	const int pointID1 = tetras[				 tetraID];
-	const int pointID2 = tetras[  def_tetraCount+tetraID];
-	const int pointID3 = tetras[2*def_tetraCount+tetraID];
-	const int pointID4 = tetras[3*def_tetraCount+tetraID];
+	const uint pointID0 = tetras[				  tetraID];
+	const uint pointID1 = tetras[  def_tetraCount+tetraID];
+	const uint pointID2 = tetras[2*def_tetraCount+tetraID];
+	const uint pointID3 = tetras[3*def_tetraCount+tetraID];
 
 	//Calculate the current distances between the particles of one tetrahedron
+	const tetraPrecisionFloat3 p0 = (tetraPrecisionFloat3)(points[pointID0], points[def_pointCount+pointID0], points[2*def_pointCount+pointID0]);
 	const tetraPrecisionFloat3 p1 = (tetraPrecisionFloat3)(points[pointID1], points[def_pointCount+pointID1], points[2*def_pointCount+pointID1]);
 	const tetraPrecisionFloat3 p2 = (tetraPrecisionFloat3)(points[pointID2], points[def_pointCount+pointID2], points[2*def_pointCount+pointID2]);
 	const tetraPrecisionFloat3 p3 = (tetraPrecisionFloat3)(points[pointID3], points[def_pointCount+pointID3], points[2*def_pointCount+pointID3]);
-	const tetraPrecisionFloat3 p4 = (tetraPrecisionFloat3)(points[pointID4], points[def_pointCount+pointID4], points[2*def_pointCount+pointID4]);
 
-	//Calculate the current distances between the particles of one tetrahedron
+    //Calculate the current distances between the particles of one tetrahedron
 	// r1 = vector between 1 and 4
-	const tetraPrecisionFloat3 r1 = p1-p4;
+	const tetraPrecisionFloat3 r1 = p1-p0;
 	// r2 = vector between 2 and 4
-	const tetraPrecisionFloat3 r2 = p2-p4;
+	const tetraPrecisionFloat3 r2 = p2-p0;
 	// r3 = vector between 3 and 4
-	const tetraPrecisionFloat3 r3 = p3-p4;
+	const tetraPrecisionFloat3 r3 = p3-p0;
 
 	const tetraPrecisionFloat3x3 rT = fromColumns(r1, r2, r3);
 
@@ -67,9 +67,8 @@ kernel void calcTetraForce(volatile global forcePrecisionFloat* particleForce, c
 	// cf. Carina MT, p. 28, eq. (5.13)
 	const tetraPrecisionFloat3x3 B = multiply(F, FT); // symmetric
 
-	// Calculate forces, force density * reference Volume of the tetrahedron
-	// cf. Carina MT, p. 95, eq. (13.2)
-	const tetraPrecisionFloat3x3 H = multiply(invJ, FT);
+	// Identity tensor
+	const tetraPrecisionFloat3x3 uT = unitTensor(tetraPrecisionFloat3x3);
 
 	// matrix holding the forces
 	tetraPrecisionFloat3x3 Force;
@@ -89,7 +88,7 @@ kernel void calcTetraForce(volatile global forcePrecisionFloat* particleForce, c
 
 		const tetraPrecisionFloat scalarFactor = kappa*(Tr(S) - 3) - 1;
 
-		const tetraPrecisionFloat3x3 inner = add(unitTensor(tetraPrecisionFloat3x3), multiply(invS, scalarFactor));
+		const tetraPrecisionFloat3x3 inner = add(uT, multiply(invS, scalarFactor));
 
 		Force = multiply(multiply(multiply(invJ, inner), FT), -V0*mu);
 	} else if(TETRA_SAINT_VENANT_KIRCHHOFF) {
@@ -101,7 +100,11 @@ kernel void calcTetraForce(volatile global forcePrecisionFloat* particleForce, c
 		// some terms to shorten the force calculation
 		const tetraPrecisionFloat kappa = nu/(1 - 2*nu);
 		const tetraPrecisionFloat mu = E/(2*(1 + nu));
-		const tetraPrecisionFloat3x3 BP = substract(B, unitTensor(tetraPrecisionFloat3x3));
+		const tetraPrecisionFloat3x3 BP = substract(B, uT);
+
+		// Calculate forces, force density * reference Volume of the tetrahedron
+		// cf. Carina MT, p. 95, eq. (13.2)
+		const tetraPrecisionFloat3x3 H = multiply(invJ, FT);
 
 		// Force component calculation
 		// cf. Carina MT, p. 87, eq. (11.3) and pp. A-XI to A-XXII
@@ -109,18 +112,24 @@ kernel void calcTetraForce(volatile global forcePrecisionFloat* particleForce, c
 		const tetraPrecisionFloat3x3 term2 = multiply(H, BP);
 
 		Force = multiply(add(term1, term2), -V0*mu);
-	} else if(TETRA_NEO_HOOKEAN) {
+	} else if(TETRA_MOONEY_RIVLIN) { // also NEO_HOOKEAN
 		// Young's modulus and Poisson ratio
 		// cf. Carina MT, p. 40, eqs. (5.48) and (5.49)
 		const tetraPrecisionFloat mu = def_tetraYoungsModulus/(2*(1+def_tetraPoissonRatio));
+		const tetraPrecisionFloat mu1 = def_tetraMooneyRivlinRatio*mu;
+		const tetraPrecisionFloat mu2 = (1-def_tetraMooneyRivlinRatio)*mu;
 		const tetraPrecisionFloat kappa = def_tetraYoungsModulus/(3*(1-2*def_tetraPoissonRatio));
 
-		// Calculation of Jacobian determinant of the deformation gradient tensor F
-		// det(F) = det(F^T) = det(dudRP) = det(invJT)*det(r) = det(r)/det(J^T) = det(r)/(6V0)
-		// -> This is a volume ratio
-		// TODO Due to the order in the code det(r) is negative
+		// Square of Green Strain
+		const tetraPrecisionFloat3x3 Bsq = multiply(B, B); // symmetric
+
+		// Trace of Green Strain and Trace of square of Green Strain
+		const tetraPrecisionFloat trB = Tr(B);
+		const tetraPrecisionFloat trBsq = Tr(Bsq);
+
+		// Calculation of Jacobian Determinant from Green Strain
 		// Also called J in Carina MT -> renamed to Jr(atio) to not conflict with tensor named J
-		const tetraPrecisionFloat Jr = -det(rT)/(6*V0);
+		const tetraPrecisionFloat Jr = det(rT)/(6*V0);
 
 		// U: strain energy density, I1: first invariant propto trace of B
 		// cf. Carina MT, p. A-XXIII
@@ -128,37 +137,46 @@ kernel void calcTetraForce(volatile global forcePrecisionFloat* particleForce, c
 		// A factor 2 has ben resorted for efficiency
 		// T: Trace of B (left Cauchy-Green deformation tensor) = F*F_transpose
 		// cf. Carina MT, p. 28, eq. (5.13)
-		const tetraPrecisionFloat dUdI1 = mu/pow(Jr, 5/(tetraPrecisionFloat)3);
+		const tetraPrecisionFloat dUdI1 = mu1/pow(Jr, 5/(tetraPrecisionFloat)3);
+		const tetraPrecisionFloat dUdK = mu2/pow(Jr, 7/(tetraPrecisionFloat)3);
 		const tetraPrecisionFloat dUdJ = kappa*(Jr - 1);
-		const tetraPrecisionFloat dI1dJ = -Tr(B)/3;
+		const tetraPrecisionFloat dI1dJ = -trB/3;
 
+		// Cauchy Stress tensor SJM PhD thesis p.16 from Bower
 		// Derivative of Jacobian determinant with respect to deformation gradient tensor
 		// cf. Carina MT, p. A-XXIII
 		// The J multiplication has been resorted for efficiency
 		// Calculate forces, force density * reference Volume of the tetrahedron
 		// cf. Carina MT, p. 95, eq. (13.2)
-		const tetraPrecisionFloat3x3 helper = multiply(invJ, invert(F));
+		const tetraPrecisionFloat3x3 term1 = multiply(B, dUdI1);
+		const tetraPrecisionFloat3x3 term2 = multiply(uT, dUdJ + dI1dJ*dUdI1);
+		const tetraPrecisionFloat3x3 inner1 = substract(multiply(B, trB), Bsq);
+		const tetraPrecisionFloat3x3 inner2 = multiply(uT, (trBsq - trB*trB)/3);
+		const tetraPrecisionFloat3x3 term3 = multiply(add(inner1, inner2), dUdK);
+		const tetraPrecisionFloat3x3 sigma = add(add(term1, term2), term3); // symmetric
 
-		const tetraPrecisionFloat3x3 term1 = multiply(helper, dUdJ + dI1dJ*dUdI1);
-		const tetraPrecisionFloat3x3 term2 = multiply(H, dUdI1);
-		Force = multiply(add(term1, term2), -V0*Jr);
+		// surface areas (cyclic: i.e. A1 = surface given by points 2,3,0, belonging to normal n1)
+		const tetraPrecisionFloat3x3 helper = multiply(invert(rT), sigma);
+
+		// force on surface areas given by stress * normal * area
+		Force = multiply(helper, -V0*Jr);
 	}
 	const tetraPrecisionFloat3 f1 = getRow(Force, 1);
 	const tetraPrecisionFloat3 f2 = getRow(Force, 2);
 	const tetraPrecisionFloat3 f3 = getRow(Force, 3);
 
-	const tetraPrecisionFloat3 f4 = -(f1 + f2 + f3);
+	const tetraPrecisionFloat3 f0 = -(f1 + f2 + f3);
 
-	atomicAdd(&particleForce[            	  pointID1], f1.x); // forces on point 1
+	atomicAdd(&particleForce[            	  pointID0], f0.x); // forces on point 0
+	atomicAdd(&particleForce[  def_pointCount+pointID0], f0.y);
+	atomicAdd(&particleForce[2*def_pointCount+pointID0], f0.z);
+	atomicAdd(&particleForce[           	  pointID1], f1.x); // forces on point 1
 	atomicAdd(&particleForce[  def_pointCount+pointID1], f1.y);
 	atomicAdd(&particleForce[2*def_pointCount+pointID1], f1.z);
-	atomicAdd(&particleForce[           	  pointID2], f2.x); // forces on point 2
+	atomicAdd(&particleForce[            	  pointID2], f2.x); // forces on point 2
 	atomicAdd(&particleForce[  def_pointCount+pointID2], f2.y);
 	atomicAdd(&particleForce[2*def_pointCount+pointID2], f2.z);
-	atomicAdd(&particleForce[            	  pointID3], f3.x); // forces on point 3
+	atomicAdd(&particleForce[        	      pointID3], f3.x); // forces on point 3
 	atomicAdd(&particleForce[  def_pointCount+pointID3], f3.y);
 	atomicAdd(&particleForce[2*def_pointCount+pointID3], f3.z);
-	atomicAdd(&particleForce[        	      pointID4], f4.x); // forces on point 4
-	atomicAdd(&particleForce[  def_pointCount+pointID4], f4.y);
-	atomicAdd(&particleForce[2*def_pointCount+pointID4], f4.z);
 }

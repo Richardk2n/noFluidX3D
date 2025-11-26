@@ -14,28 +14,20 @@ import time
 try:
     from warnings import deprecated  # Python 3.13
 except ImportError:
-
-    def deprecated(message: str):  # TODO write something useful
-        def decorator(fun):
-            return fun
-
-        return decorator
-
+    from nofluidx3d.util.decorators import deprecated
 
 import numpy as np
 
-from nofluidx3d import TetraCell as tc
 from nofluidx3d.interactions import (
     MooneyRivlin,
     Plane,
-    PlaneAFM,
-    SaintVenantKirchhoff,
     Sphere,
     Substrate,
     Tetra,
     VelocityVerlet,
 )
 from nofluidx3d.openCL import getCommandQueue, initializeOpenCLObjects
+from nofluidx3d.TetraCell import TetraCell
 from nofluidx3d.util.Bridge import Bridge
 from nofluidx3d.util.IO import writeVTK
 
@@ -71,8 +63,7 @@ class Simulation:
         except:
             pass
 
-        self.cell = tc.TetraCell()
-        self.cell.initFromVTK(
+        self.cell = TetraCell(
             self.parameters["CELL"]["InitVTK"],
             radius=self.parameters["CELL"]["RadiusSIM"],
             recenter=True,
@@ -225,74 +216,16 @@ class Simulation:
             self.recordedQuantities.append(indentationSI)
             self.recordedQuantities.append(forceSI)
 
-    @deprecated("Switch to Plane + Substrate")
-    def setInteractionPlaneAFM(self, record=True):
-        def topWallFunc(time):
-            if time <= self.parameters["MoveTimeSI"] / self.T0:
-                return (
-                    self.parameters["CELL"]["RadiusSIM"]
-                    + self.parameters["InitialDistance"]
-                    - self.parameters["VelocitySI"] / self.V0 * time
-                )
-            else:
-                return (
-                    self.parameters["CELL"]["RadiusSIM"]
-                    + self.parameters["InitialDistance"]
-                    - self.parameters["VelocitySI"]
-                    / self.V0
-                    * self.parameters["MoveTimeSI"]
-                    / self.T0
-                )
-
-        def bottomWallFunc(time):
-            return -(self.parameters["CELL"]["RadiusSIM"] + self.parameters["InitialDistance"])
-
-        forceConst = 0.1  # self.parameters["PotentialForceConst"]
-        interAFM = PlaneAFM(
-            topWallFunc,
-            bottomWallFunc,
-            forceConst,
-        )
-        self.register(interAFM)
-
-        # this records the distance the sphere has travelled
-        def indentationSI():
-            return (topWallFunc(0) - topWallFunc(self.time)) * self.L0
-
-        # this records the force exerted onto the sphere by the cell
-        def forceSI():
-            dis = np.max(
-                [self.cell.mesh.points[:, 1] - topWallFunc(self.time), np.zeros(self.numPoints)], 0
-            )
-            print(f"Max dis: {np.max(dis)}")
-            force_abs = forceConst * dis
-            force = force_abs * (self.p0 * self.L0**2)
-            return sum(force)
-
-        if record:
-            self.recordedQuantities.append(indentationSI)
-            self.recordedQuantities.append(forceSI)
-
     def setInteractionTetra(self):
         youngsModulusSI = self.parameters["CELL"]["YoungsModulusSI"]
         poissonRatio = self.parameters["CELL"]["PoissonRatio"]
+        mooneyRivlinRatio = self.parameters["CELL"].get("MooneyRivlinRatio", 1)
         youngsModulus = youngsModulusSI / self.p0
         model = Tetra.materialModel[self.parameters["CELL"]["model"]]
-        inter = Tetra(self.cell, youngsModulus, poissonRatio, model)
+        inter = Tetra(self.cell, youngsModulus, poissonRatio, mooneyRivlinRatio, model)
         self.register(inter)
 
     @deprecated("Use setInteractionTetra instead")
-    def setInteractionSaintVenantKirchhoff(self):
-        youngsModulusSI = self.parameters["CELL"]["YoungsModulusSI"]
-        poissonRatio = self.parameters["CELL"]["PoissonRatio"]
-        youngsModulus = youngsModulusSI / self.p0
-        interLE = SaintVenantKirchhoff(
-            self.cell,
-            youngsModulus,
-            poissonRatio,
-        )
-        self.register(interLE)
-
     def setInteractionMooneyRivlin(self):
         youngsModulusSI = self.parameters["CELL"]["YoungsModulusSI"]
         poissonRatio = self.parameters["CELL"]["PoissonRatio"]
