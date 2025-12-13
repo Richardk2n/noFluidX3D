@@ -19,7 +19,6 @@ except ImportError:
 import numpy as np
 
 from nofluidx3d.interactions import (
-    MooneyRivlin,
     Plane,
     Sphere,
     Substrate,
