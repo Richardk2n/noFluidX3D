@@ -83,7 +83,7 @@ kernel void calcTetraForce(volatile global forcePrecisionFloat* particleForce, c
 		const tetraPrecisionFloat kappa = nu/(1 - 2*nu);
 		const tetraPrecisionFloat mu = E/(2*(1 + nu));
 
-		const tetraPrecisionFloat3x3 S = approximateRoot(multiply(FT, F));
+		const tetraPrecisionFloat3x3 S = approximateRoot(B);
 		const tetraPrecisionFloat3x3 invS = invert(S);
 
 		const tetraPrecisionFloat scalarFactor = kappa*(Tr(S) - 3) - 1;
